@@ -1,0 +1,522 @@
+const express = require('express');
+const { pool } = require('../db/dbConnect');
+
+const router = express.Router();
+
+// Get all upcoming events
+router.get('/events', async (req, res) => {
+    try {
+        const [events] = await pool.execute(
+            `SELECT 
+                e.id,
+                e.name,
+                e.description,
+                e.event_date,
+                e.start_time,
+                e.end_time,
+                e.event_type,
+                e.status,
+                e.max_participants,
+                e.registration_required,
+                e.registration_deadline,
+                c.name as club_name,
+                v.name as venue_name,
+                v.type as venue_type,
+                campus.name as campus_name,
+                COUNT(er.id) as registered_count
+            FROM events e
+            JOIN clubs c ON e.organized_by_club_id = c.id
+            LEFT JOIN venue_bookings vb ON e.booking_id = vb.id
+            LEFT JOIN venues v ON vb.venue_id = v.id
+            LEFT JOIN campus ON v.campus_id = campus.id
+            LEFT JOIN event_registrations er ON e.id = er.event_id AND er.registration_status = 'Registered'
+            WHERE e.status IN ('Approved', 'Pending_Approval') 
+            AND e.event_date >= CURDATE()
+            GROUP BY e.id
+            ORDER BY e.event_date ASC, e.start_time ASC`
+        );
+        
+        res.json({
+            success: true,
+            count: events.length,
+            events
+        });
+    } catch (error) {
+        console.error('Error fetching events:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to fetch events'
+        });
+    }
+});
+
+// Register for an event - MUST come before /events/:id route
+router.post('/events/:eventId/register', async (req, res) => {
+    const connection = await pool.getConnection();
+    try {
+        const { eventId } = req.params;
+        const { email, name, phone, paymentScreenshot } = req.body;
+        
+        console.log('Registration request received:', { eventId, email, name });
+        
+        // Start transaction
+        await connection.beginTransaction();
+        
+        // First, get or create the student record based on email
+        let [students] = await connection.execute(
+            'SELECT id FROM students WHERE email = ?',
+            [email]
+        );
+        
+        let studentId;
+        
+        if (students.length === 0) {
+            // Create new student record if doesn't exist
+            const studentIdGenerated = email.split('@')[0]; // Extract from email
+            const [insertResult] = await connection.execute(
+                `INSERT INTO students (student_id, name, email, phone, password_hash) 
+                 VALUES (?, ?, ?, ?, ?)`,
+                [studentIdGenerated, name, email, phone || null, 'clerk_sso'] // Use placeholder for SSO users
+            );
+            studentId = insertResult.insertId;
+            console.log('Created new student:', studentId);
+        } else {
+            studentId = students[0].id;
+            console.log('Found existing student:', studentId);
+            
+            // Update student info if provided
+            if (name || phone) {
+                await connection.execute(
+                    `UPDATE students SET name = COALESCE(?, name), phone = COALESCE(?, phone) 
+                     WHERE id = ?`,
+                    [name, phone, studentId]
+                );
+            }
+        }
+        
+        // Check if event exists and is open for registration
+        const [events] = await connection.execute(
+            `SELECT id, name, max_participants, registration_deadline, event_date, start_time, status
+             FROM events 
+             WHERE id = ?`,
+            [eventId]
+        );
+        
+        if (events.length === 0) {
+            await connection.rollback();
+            return res.status(404).json({
+                success: false,
+                error: 'Event not found'
+            });
+        }
+        
+        const event = events[0];
+        console.log('Event found:', event.name, 'Status:', event.status);
+        
+        // Check if event is approved
+        if (event.status !== 'Approved') {
+            await connection.rollback();
+            return res.status(400).json({
+                success: false,
+                error: 'This event is not open for registration'
+            });
+        }
+        
+        // Check registration deadline
+        if (event.registration_deadline) {
+            const deadline = new Date(event.registration_deadline);
+            if (new Date() > deadline) {
+                await connection.rollback();
+                return res.status(400).json({
+                    success: false,
+                    error: 'Registration deadline has passed'
+                });
+            }
+        }
+        
+        // Check if student has any existing registration (including cancelled)
+        const [existingReg] = await connection.execute(
+            'SELECT id, registration_status FROM event_registrations WHERE student_id = ? AND event_id = ?',
+            [studentId, eventId]
+        );
+        
+        if (existingReg.length > 0) {
+            // If registration exists and is currently active (Registered or Waitlisted)
+            if (existingReg[0].registration_status === 'Registered' || existingReg[0].registration_status === 'Waitlisted') {
+                await connection.rollback();
+                return res.status(400).json({
+                    success: false,
+                    error: 'You are already registered for this event',
+                    registrationStatus: existingReg[0].registration_status
+                });
+            }
+            
+            // If registration was cancelled, reactivate it
+            if (existingReg[0].registration_status === 'Cancelled') {
+                console.log('Reactivating cancelled registration for student:', studentId);
+                await connection.execute(
+                    `UPDATE event_registrations 
+                     SET registration_status = 'Registered', 
+                         registration_time = CURRENT_TIMESTAMP
+                     WHERE id = ?`,
+                    [existingReg[0].id]
+                );
+                
+                await connection.commit();
+                console.log('Registration reactivated successfully');
+                
+                return res.json({
+                    success: true,
+                    message: 'Successfully re-registered for the event',
+                    registrationId: existingReg[0].id
+                });
+            }
+        }
+        
+        // Check if event is full
+        if (event.max_participants) {
+            const [regCount] = await connection.execute(
+                `SELECT COUNT(*) as count FROM event_registrations 
+                 WHERE event_id = ? AND registration_status = 'Registered'`,
+                [eventId]
+            );
+            
+            if (regCount[0].count >= event.max_participants) {
+                // Register as waitlisted
+                const [result] = await connection.execute(
+                    `INSERT INTO event_registrations (student_id, event_id, registration_status, attended) 
+                     VALUES (?, ?, 'Waitlisted', FALSE)`,
+                    [studentId, eventId]
+                );
+                
+                await connection.commit();
+                
+                console.log('Student added to waitlist');
+                return res.json({
+                    success: true,
+                    message: 'Added to waitlist successfully',
+                    registration: {
+                        id: result.insertId,
+                        status: 'Waitlisted',
+                        eventName: event.name
+                    }
+                });
+            }
+        }
+        
+        // Register the student for the event with attended set to FALSE (will be marked TRUE when they actually attend)
+        const [result] = await connection.execute(
+            `INSERT INTO event_registrations (student_id, event_id, registration_status, attended) 
+             VALUES (?, ?, 'Registered', FALSE)`,
+            [studentId, eventId]
+        );
+        
+        await connection.commit();
+        
+        console.log('Registration successful:', result.insertId);
+        res.json({
+            success: true,
+            message: 'Successfully registered for the event',
+            registration: {
+                id: result.insertId,
+                studentId: studentId,
+                eventId: eventId,
+                status: 'Registered',
+                eventName: event.name,
+                eventDate: event.event_date,
+                eventTime: event.start_time
+            }
+        });
+        
+    } catch (error) {
+        await connection.rollback();
+        console.error('Error registering for event:', error);
+        
+        if (error.code === 'ER_DUP_ENTRY') {
+            return res.status(400).json({
+                success: false,
+                error: 'You are already registered for this event'
+            });
+        }
+        
+        res.status(500).json({
+            success: false,
+            error: 'Failed to register for event',
+            details: error.message
+        });
+    } finally {
+        connection.release();
+    }
+});
+
+// Cancel event registration
+router.delete('/events/:eventId/register', async (req, res) => {
+    try {
+        const { eventId } = req.params;
+        const { email } = req.body;
+        
+        // Get student by email
+        const [students] = await pool.execute(
+            'SELECT id FROM students WHERE email = ?',
+            [email]
+        );
+        
+        if (students.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Student not found'
+            });
+        }
+        
+        const studentId = students[0].id;
+        
+        // Update registration status to cancelled
+        const [result] = await pool.execute(
+            `UPDATE event_registrations 
+             SET registration_status = 'Cancelled' 
+             WHERE student_id = ? AND event_id = ? AND registration_status != 'Cancelled'`,
+            [studentId, eventId]
+        );
+        
+        if (result.affectedRows === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Registration not found or already cancelled'
+            });
+        }
+        
+        res.json({
+            success: true,
+            message: 'Registration cancelled successfully'
+        });
+        
+    } catch (error) {
+        console.error('Error cancelling registration:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to cancel registration'
+        });
+    }
+});
+
+// Get user's registered events by email - MUST come before /events/:id
+router.get('/events/my-registrations', async (req, res) => {
+    try {
+        const email = req.query.email;
+        
+        if (!email) {
+            return res.status(400).json({
+                success: false,
+                error: 'Email is required'
+            });
+        }
+        
+        // First get the student ID from email
+        const [students] = await pool.execute(
+            'SELECT id FROM students WHERE email = ?',
+            [email.toLowerCase()]
+        );
+        
+        if (students.length === 0) {
+            return res.json({
+                success: true,
+                count: 0,
+                events: []
+            });
+        }
+        
+        const studentId = students[0].id;
+        
+        const [events] = await pool.execute(
+            `SELECT 
+                e.id,
+                e.name,
+                e.description,
+                e.event_date,
+                e.start_time,
+                e.end_time,
+                e.event_type,
+                e.status,
+                e.max_participants,
+                c.name as club_name,
+                v.name as venue_name,
+                er.registration_status,
+                er.attended,
+                er.registration_time,
+                COUNT(DISTINCT er2.id) as registered_count
+            FROM events e
+            JOIN event_registrations er ON e.id = er.event_id
+            JOIN clubs c ON e.organized_by_club_id = c.id
+            LEFT JOIN venue_bookings vb ON e.booking_id = vb.id
+            LEFT JOIN venues v ON vb.venue_id = v.id
+            LEFT JOIN event_registrations er2 ON e.id = er2.event_id AND er2.registration_status = 'Registered'
+            WHERE er.student_id = ?
+            AND er.registration_status = 'Registered'
+            GROUP BY e.id, e.name, e.description, e.event_date, e.start_time, e.end_time, 
+                     e.event_type, e.status, e.max_participants, c.name, v.name, 
+                     er.registration_status, er.attended, er.registration_time
+            ORDER BY e.event_date ASC, e.start_time ASC`
+        , [studentId]);
+        
+        res.json({
+            success: true,
+            count: events.length,
+            events
+        });
+    } catch (error) {
+        console.error('Error fetching user registered events:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to fetch user events'
+        });
+    }
+});
+
+// Get event by ID
+router.get('/events/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        const [events] = await pool.execute(
+            `SELECT 
+                e.id,
+                e.name,
+                e.description,
+                e.event_date,
+                e.start_time,
+                e.end_time,
+                e.event_type,
+                e.status,
+                e.max_participants,
+                e.registration_required,
+                e.registration_deadline,
+                c.name as club_name,
+                c.description as club_description,
+                v.name as venue_name,
+                v.type as venue_type,
+                v.capacity as venue_capacity,
+                campus.name as campus_name,
+                COUNT(er.id) as registered_count
+            FROM events e
+            JOIN clubs c ON e.organized_by_club_id = c.id
+            LEFT JOIN venue_bookings vb ON e.booking_id = vb.id
+            LEFT JOIN venues v ON vb.venue_id = v.id
+            LEFT JOIN campus ON v.campus_id = campus.id
+            LEFT JOIN event_registrations er ON e.id = er.event_id AND er.registration_status = 'Registered'
+            WHERE e.id = ?
+            GROUP BY e.id`
+        , [id]);
+        
+        if (events.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Event not found'
+            });
+        }
+        
+        res.json({
+            success: true,
+            event: events[0]
+        });
+    } catch (error) {
+        console.error('Error fetching event:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to fetch event'
+        });
+    }
+});
+
+// Get events by type
+router.get('/events/type/:type', async (req, res) => {
+    try {
+        const { type } = req.params;
+        
+        const [events] = await pool.execute(
+            `SELECT 
+                e.id,
+                e.name,
+                e.description,
+                e.event_date,
+                e.start_time,
+                e.end_time,
+                e.event_type,
+                e.status,
+                c.name as club_name,
+                v.name as venue_name,
+                COUNT(er.id) as registered_count
+            FROM events e
+            JOIN clubs c ON e.organized_by_club_id = c.id
+            LEFT JOIN venue_bookings vb ON e.booking_id = vb.id
+            LEFT JOIN venues v ON vb.venue_id = v.id
+            LEFT JOIN event_registrations er ON e.id = er.event_id AND er.registration_status = 'Registered'
+            WHERE e.event_type = ? 
+            AND e.status IN ('Approved', 'Pending_Approval')
+            AND e.event_date >= CURDATE()
+            GROUP BY e.id
+            ORDER BY e.event_date ASC, e.start_time ASC`
+        , [type]);
+        
+        res.json({
+            success: true,
+            count: events.length,
+            events
+        });
+    } catch (error) {
+        console.error('Error fetching events by type:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to fetch events'
+        });
+    }
+});
+
+// Get user's registered events
+router.get('/events/user/:studentId', async (req, res) => {
+    try {
+        const { studentId } = req.params;
+        
+        const [events] = await pool.execute(
+            `SELECT 
+                e.id,
+                e.name,
+                e.description,
+                e.event_date,
+                e.start_time,
+                e.end_time,
+                e.event_type,
+                e.status,
+                e.max_participants,
+                c.name as club_name,
+                v.name as venue_name,
+                er.registration_status,
+                er.attended,
+                er.registration_time,
+                COUNT(DISTINCT er2.id) as registered_count
+            FROM events e
+            JOIN event_registrations er ON e.id = er.event_id
+            JOIN clubs c ON e.organized_by_club_id = c.id
+            LEFT JOIN venue_bookings vb ON e.booking_id = vb.id
+            LEFT JOIN venues v ON vb.venue_id = v.id
+            LEFT JOIN event_registrations er2 ON e.id = er2.event_id AND er2.registration_status = 'Registered'
+            WHERE er.student_id = ?
+            AND er.registration_status = 'Registered'
+            GROUP BY e.id
+            ORDER BY e.event_date ASC, e.start_time ASC`
+        , [studentId]);
+        
+        res.json({
+            success: true,
+            count: events.length,
+            events
+        });
+    } catch (error) {
+        console.error('Error fetching user events:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to fetch user events'
+        });
+    }
+});
+
+module.exports = router;

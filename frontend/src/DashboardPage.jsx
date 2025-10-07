@@ -1,0 +1,129 @@
+import React, { useState, useEffect } from 'react'
+import { useUser } from '@clerk/clerk-react'
+import { useNavigate } from 'react-router-dom'
+import apiService from './services/apiService'
+import NavBar from './components/NavBar'
+
+export default function DashboardPage() {
+  console.log('DashboardPage rendering');
+  
+  const { user, isLoaded } = useUser();
+  const navigate = useNavigate();
+  const [upcomingEvents, setUpcomingEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  
+  // Get user's name with fallbacks
+  const getUserName = () => {
+    if (!user) return 'User';
+    
+    if (user.firstName) {
+      return user.firstName;
+    }
+    
+    if (user.fullName) {
+      return user.fullName.split(' ')[0];
+    }
+    
+    if (user.emailAddresses?.[0]?.emailAddress) {
+      const email = user.emailAddresses[0].emailAddress;
+      return email.split('@')[0];
+    }
+    
+    return 'User';
+  };
+
+  // Fetch upcoming events
+  useEffect(() => {
+    const fetchEvents = async () => {
+      try {
+        setLoading(true);
+        const response = await apiService.getEvents();
+        if (response.success) {
+          // Get only the first 3 upcoming events for dashboard
+          setUpcomingEvents(response.events.slice(0, 3));
+        }
+      } catch (err) {
+        console.error('Failed to fetch events:', err);
+        setError('Failed to load events');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (isLoaded) {
+      fetchEvents();
+    }
+  }, [isLoaded]);
+
+  if (!isLoaded) {
+    return (
+      <div className="loading-spinner">
+        <div className="spinner"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="dashboard-container">
+      {/* Navigation Bar */}
+      <NavBar activePage="dashboard" />
+
+      {/* Main Content */}
+      <main className="dashboard-main">
+        <div className="welcome-section">
+          <h1 className="welcome-title">Hey, Welcome {getUserName()}</h1>
+          <p className="welcome-subtitle">Take a look at what's happening in campus</p>
+        </div>
+
+        <div className="events-section">
+          <div className="upcoming-events-card">
+            <h2 className="section-title">Upcoming Events</h2>
+            <div className="events-content">
+              {loading ? (
+                <div className="loading-spinner">
+                  <div className="spinner"></div>
+                </div>
+              ) : error ? (
+                <p className="error-message">{error}</p>
+              ) : upcomingEvents.length > 0 ? (
+                <div className="events-list">
+                  {upcomingEvents.map((event) => (
+                    <div 
+                      key={event.id} 
+                      className="event-item"
+                      onClick={() => navigate(`/events/${event.id}/register`)}
+                      style={{ cursor: 'pointer', transition: 'transform 0.2s ease, background 0.2s ease' }}
+                      onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+                      onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+                    >
+                      <h4 className="event-name">{event.name}</h4>
+                      <p className="event-date">
+                        {apiService.formatEventDate(event.event_date)}
+                      </p>
+                      <p className="event-time">
+                        {apiService.formatEventTime(event.start_time)}
+                      </p>
+                      <p className="event-club">by {event.club_name}</p>
+                    </div>
+                  ))}
+                  <button 
+                    className="view-all-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate('/events');
+                    }}
+                  >
+                    View All Events →
+                  </button>
+                </div>
+              ) : (
+                <p className="no-events">No upcoming events at the moment</p>
+              )}
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  )
+}
