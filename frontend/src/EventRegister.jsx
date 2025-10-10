@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useUser } from '@clerk/clerk-react'
 import { toast, Toaster } from 'sonner'
 import apiService from './services/apiService'
 import NavBar from './components/NavBar'
@@ -8,7 +7,6 @@ import NavBar from './components/NavBar'
 export default function EventRegister() {
   const { eventId } = useParams()
   const navigate = useNavigate()
-  const { user, isLoaded } = useUser()
   
   const [event, setEvent] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -51,17 +49,20 @@ export default function EventRegister() {
     }
   }, [eventId])
 
-  // Pre-fill form with user data
+  // Pre-fill form with user data from token/localStorage
   useEffect(() => {
-    if (isLoaded && user) {
+    const token = localStorage.getItem('token')
+    if (token) {
+      // You can fetch user profile or get basic info from localStorage
+      const userInfo = JSON.parse(localStorage.getItem('user') || '{}')
       setFormData(prev => ({
         ...prev,
-        name: user.fullName || '',
-        email: user.emailAddresses?.[0]?.emailAddress || '',
-        phone: user.phoneNumbers?.[0]?.phoneNumber || ''
+        name: userInfo.name || '',
+        email: userInfo.email || '',
+        phone: userInfo.phone || ''
       }))
     }
-  }, [isLoaded, user])
+  }, [])
 
   const handleInputChange = (e) => {
     const { name, value } = e.target
@@ -175,7 +176,7 @@ export default function EventRegister() {
     }
   }
 
-  if (!isLoaded || loading) {
+  if (loading) {
     return (
       <div className="loading-spinner">
         <div className="spinner"></div>

@@ -8,6 +8,7 @@ export default function LandingPage() {
         <div className="brand">EventNexus</div>
 
         <div className="nav-actions">
+          <Link className="admin-link" to="/admin/login">Admin Portal</Link>
           <Link className="login-link" to="/login">Login</Link>
           <Link className="btn primary" to="/register">Register<span className="arrow">→</span></Link>
         </div>

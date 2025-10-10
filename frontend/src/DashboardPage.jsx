@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react'
-import { useUser } from '@clerk/clerk-react'
 import { useNavigate } from 'react-router-dom'
 import apiService from './services/apiService'
 import NavBar from './components/NavBar'
@@ -7,34 +6,49 @@ import NavBar from './components/NavBar'
 export default function DashboardPage() {
   console.log('DashboardPage rendering');
   
-  const { user, isLoaded } = useUser();
   const navigate = useNavigate();
+  const [user, setUser] = useState(null);
   const [upcomingEvents, setUpcomingEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  
+  // Get user info from localStorage
+  useEffect(() => {
+    const userData = JSON.parse(localStorage.getItem('user') || '{}');
+    const token = localStorage.getItem('token');
+    
+    if (!token || !userData.id) {
+      navigate('/login');
+      return;
+    }
+    
+    setUser(userData);
+  }, [navigate]);
   
   // Get user's name with fallbacks
   const getUserName = () => {
     if (!user) return 'User';
     
-    if (user.firstName) {
-      return user.firstName;
+    if (user.name) {
+      return user.name.split(' ')[0];
     }
     
-    if (user.fullName) {
-      return user.fullName.split(' ')[0];
-    }
-    
-    if (user.emailAddresses?.[0]?.emailAddress) {
-      const email = user.emailAddresses[0].emailAddress;
-      return email.split('@')[0];
+    if (user.email) {
+      return user.email.split('@')[0];
     }
     
     return 'User';
   };
 
+  // Check if user is club head
+  const isClubHead = () => {
+    return user && user.role === 'club_head';
+  };
+
   // Fetch upcoming events
   useEffect(() => {
+    if (!user) return;
+    
     const fetchEvents = async () => {
       try {
         setLoading(true);
@@ -51,12 +65,10 @@ export default function DashboardPage() {
       }
     };
 
-    if (isLoaded) {
-      fetchEvents();
-    }
-  }, [isLoaded]);
+    fetchEvents();
+  }, [user]);
 
-  if (!isLoaded) {
+  if (!user) {
     return (
       <div className="loading-spinner">
         <div className="spinner"></div>
@@ -72,9 +84,35 @@ export default function DashboardPage() {
       {/* Main Content */}
       <main className="dashboard-main">
         <div className="welcome-section">
-          <h1 className="welcome-title">Hey, Welcome {getUserName()}</h1>
+          <h1 className="welcome-title">
+            Hey, Welcome {getUserName()}
+            {isClubHead() && <span className="role-badge">Club Head</span>}
+          </h1>
           <p className="welcome-subtitle">Take a look at what's happening in campus</p>
         </div>
+
+        {/* Club Head Actions */}
+        {isClubHead() && (
+          <div className="club-head-section">
+            <div className="quick-actions">
+              <h3>Quick Actions</h3>
+              <div className="action-buttons">
+                <button 
+                  className="action-btn primary"
+                  onClick={() => navigate('/events/create')}
+                >
+                  Create Event
+                </button>
+                <button 
+                  className="action-btn secondary"
+                  onClick={() => navigate('/club/manage')}
+                >
+                  Manage Club
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="events-section">
           <div className="upcoming-events-card">

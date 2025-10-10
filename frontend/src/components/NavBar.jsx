@@ -1,9 +1,17 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
-import { UserButton } from '@clerk/clerk-react'
 
 export default function NavBar({ activePage = '' }) {
   const navigate = useNavigate()
+
+  const handleLogout = () => {
+    // Clear the JWT token from localStorage
+    localStorage.removeItem('token')
+    localStorage.removeItem('userRole')
+    localStorage.removeItem('userId')
+    // Redirect to home page
+    navigate('/')
+  }
 
   return (
     <nav className="dashboard-nav">
@@ -45,16 +53,28 @@ export default function NavBar({ activePage = '' }) {
       </div>
       <div className="nav-right">
         <div className="profile-btn-wrapper">
-          <UserButton 
-            appearance={{
-              elements: {
-                avatarBox: "w-8 h-8",
-                userButtonPopoverCard: "bg-white",
-                userButtonPopoverActionButton: "text-gray-700 hover:bg-gray-100"
-              }
+          <button 
+            onClick={handleLogout}
+            className="logout-btn"
+            style={{
+              background: 'none',
+              border: '1px solid rgba(255,255,255,0.1)',
+              color: 'var(--primary-text)',
+              padding: '8px 16px',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontSize: '14px',
+              transition: 'all 0.2s ease'
             }}
-            afterSignOutUrl="/"
-          />
+            onMouseOver={(e) => {
+              e.target.style.backgroundColor = 'rgba(255,255,255,0.1)'
+            }}
+            onMouseOut={(e) => {
+              e.target.style.backgroundColor = 'transparent'
+            }}
+          >
+            Logout
+          </button>
           <span className="profile-text">Profile</span>
         </div>
       </div>

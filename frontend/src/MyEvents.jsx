@@ -1,31 +1,39 @@
 ﻿import React, { useState, useEffect } from 'react'
-import { useUser } from '@clerk/clerk-react'
 import { toast, Toaster } from 'sonner'
 import apiService from './services/apiService'
 import NavBar from './components/NavBar'
 
 export default function MyEvents() {
-  const { isLoaded, user } = useUser()
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [user, setUser] = useState(null)
 
   const getUserName = () => {
     if (!user) return 'User'
-    return user.firstName || user.fullName?.split(' ')[0] || 'User'
+    return user.first_name || user.name?.split(' ')[0] || 'User'
   }
 
   useEffect(() => {
-    const fetchMyEvents = async () => {
-      if (!user?.emailAddresses?.[0]?.emailAddress) {
-        setLoading(false)
-        return
-      }
+    // Get user info from localStorage or fetch from API
+    const token = localStorage.getItem('token')
+    const userId = localStorage.getItem('userId')
+    
+    if (!token || !userId) {
+      setLoading(false)
+      return
+    }
 
+    const fetchUserAndEvents = async () => {
       try {
         setLoading(true)
-        const email = user.emailAddresses[0].emailAddress
-        const response = await apiService.getMyRegisteredEvents(email)
+        
+        // Fetch user profile to get email
+        const userProfile = await apiService.getUserProfile()
+        setUser(userProfile.user)
+        
+        // Fetch user's registered events
+        const response = await apiService.getMyRegisteredEvents(userProfile.user.email)
         
         if (response.success) {
           setEvents(response.events || [])
@@ -42,10 +50,8 @@ export default function MyEvents() {
       }
     }
 
-    if (isLoaded) {
-      fetchMyEvents()
-    }
-  }, [isLoaded, user])
+    fetchUserAndEvents()
+  }, [])
 
   const getEventImage = (event) => {
     const eventType = event.event_type?.toLowerCase() || ''
@@ -97,7 +103,7 @@ export default function MyEvents() {
     }
   }
 
-  if (!isLoaded || loading) {
+  if (loading) {
     return (
       <div className="page-root">
         <NavBar activePage="my-events" />

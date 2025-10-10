@@ -1,6 +1,5 @@
 import React from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
-import { SignedIn, SignedOut, RedirectToSignIn } from '@clerk/clerk-react'
 import './App.css'
 import LandingPage from './LandingPage'
 import LoginPage from './LoginPage'
@@ -11,44 +10,33 @@ import EventRegister from './EventRegister'
 import ClubsPage from './ClubsPage'
 import ClubDetails from './ClubDetails'
 import MyEvents from './MyEvents'
-import SSOCallback from './SSOCallback'
+import AdminLoginPage from './AdminLoginPage'
+import AdminDashboard from './AdminDashboard'
+import ProtectedRoute from './components/ProtectedRoute'
 
 function App() {
   console.log('App component rendering');
+  
+  const isAuthenticated = () => {
+    return localStorage.getItem('token') && localStorage.getItem('user');
+  };
   
   return (
     <Routes>
       {/* Public routes */}
       <Route path="/" element={<LandingPage />} />
       
-      {/* SSO Callback route */}
-      <Route path="/sso-callback" element={<SSOCallback />} />
-      
       {/* Auth routes */}
       <Route 
         path="/login" 
         element={
-          <>
-            <SignedOut>
-              <LoginPage />
-            </SignedOut>
-            <SignedIn>
-              <Navigate to="/dashboard" replace />
-            </SignedIn>
-          </>
+          isAuthenticated() ? <Navigate to="/dashboard" replace /> : <LoginPage />
         } 
       />
       <Route 
         path="/register" 
         element={
-          <>
-            <SignedOut>
-              <RegisterPage />
-            </SignedOut>
-            <SignedIn>
-              <Navigate to="/dashboard" replace />
-            </SignedIn>
-          </>
+          isAuthenticated() ? <Navigate to="/dashboard" replace /> : <RegisterPage />
         } 
       />
       
@@ -56,81 +44,55 @@ function App() {
       <Route 
         path="/dashboard" 
         element={
-          <>
-            <SignedIn>
-              <DashboardPage />
-            </SignedIn>
-            <SignedOut>
-              <RedirectToSignIn />
-            </SignedOut>
-          </>
+          <ProtectedRoute>
+            <DashboardPage />
+          </ProtectedRoute>
         } 
       />
       <Route 
         path="/events" 
         element={
-          <>
-            <SignedIn>
-              <EventsPage />
-            </SignedIn>
-            <SignedOut>
-              <RedirectToSignIn />
-            </SignedOut>
-          </>
+          <ProtectedRoute>
+            <EventsPage />
+          </ProtectedRoute>
         } 
       />
       <Route 
         path="/events/:eventId/register" 
         element={
-          <>
-            <SignedIn>
-              <EventRegister />
-            </SignedIn>
-            <SignedOut>
-              <RedirectToSignIn />
-            </SignedOut>
-          </>
+          <ProtectedRoute>
+            <EventRegister />
+          </ProtectedRoute>
         } 
       />
       <Route 
         path="/clubs" 
         element={
-          <>
-            <SignedIn>
-              <ClubsPage />
-            </SignedIn>
-            <SignedOut>
-              <RedirectToSignIn />
-            </SignedOut>
-          </>
+          <ProtectedRoute>
+            <ClubsPage />
+          </ProtectedRoute>
         } 
       />
       <Route 
         path="/clubs/:clubId" 
         element={
-          <>
-            <SignedIn>
-              <ClubDetails />
-            </SignedIn>
-            <SignedOut>
-              <RedirectToSignIn />
-            </SignedOut>
-          </>
+          <ProtectedRoute>
+            <ClubDetails />
+          </ProtectedRoute>
         } 
       />
       <Route 
         path="/my-events" 
         element={
-          <>
-            <SignedIn>
-              <MyEvents />
-            </SignedIn>
-            <SignedOut>
-              <RedirectToSignIn />
-            </SignedOut>
-          </>
+          <ProtectedRoute>
+            <MyEvents />
+          </ProtectedRoute>
         } 
       />
+      
+      {/* Admin routes */}
+      <Route path="/admin/login" element={<AdminLoginPage />} />
+      <Route path="/admin/dashboard" element={<AdminDashboard />} />
     </Routes>
   )
 }

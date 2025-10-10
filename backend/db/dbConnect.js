@@ -49,7 +49,7 @@ async function loadSchema() {
     try {
         console.log('Loading database schema...');
         
-        const schemaPath = path.join(__dirname, 'schema_simple.sql');
+        const schemaPath = path.join(__dirname, 'schema_enhanced.sql');
         const schemaSql = fs.readFileSync(schemaPath, 'utf8');
         
         // Remove comments and split by semicolons properly

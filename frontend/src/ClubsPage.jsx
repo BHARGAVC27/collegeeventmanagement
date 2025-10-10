@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react'
-import { useUser } from '@clerk/clerk-react'
 import { useNavigate } from 'react-router-dom'
 import apiService from './services/apiService'
 import NavBar from './components/NavBar'
 
 export default function ClubsPage() {
-  const { user, isLoaded } = useUser()
   const navigate = useNavigate()
   const [clubs, setClubs] = useState([])
   const [loading, setLoading] = useState(true)
@@ -29,23 +27,20 @@ export default function ClubsPage() {
       }
     }
 
-    if (isLoaded) {
-      fetchClubs()
-    }
-  }, [isLoaded])
+    fetchClubs()
+  }, [])
 
   const handleJoinClub = async (clubId, clubName) => {
-    if (!user?.emailAddresses?.[0]?.emailAddress) {
+    const token = localStorage.getItem('token')
+    if (!token) {
       alert('Please log in to join a club')
+      navigate('/login')
       return
     }
 
     setJoiningClub(clubId)
     try {
-      const response = await apiService.joinClub(
-        clubId,
-        user.emailAddresses[0].emailAddress
-      )
+      const response = await apiService.joinClub(clubId)
 
       if (response.success) {
         alert(`Successfully joined ${clubName}!`)
@@ -84,7 +79,7 @@ export default function ClubsPage() {
     return 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=400&h=400&fit=crop'
   }
 
-  if (!isLoaded || loading) {
+  if (loading) {
     return (
       <div className="loading-spinner">
         <div className="spinner"></div>
@@ -110,7 +105,9 @@ export default function ClubsPage() {
           <div className="clubs-grid">
             {clubs.length > 0 ? (
               clubs.map((club) => {
-                const isUserHead = user?.emailAddresses?.[0]?.emailAddress === club.head_email
+                // For now, we'll check if user is club head using localStorage
+                const userEmail = JSON.parse(localStorage.getItem('user') || '{}').email
+                const isUserHead = userEmail === club.head_email
                 
                 return (
                   <div 

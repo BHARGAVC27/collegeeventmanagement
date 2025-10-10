@@ -1,9 +1,10 @@
 const express = require('express');
 const { pool } = require('../db/dbConnect');
+const { authenticate, authorizeStudent, authorizeClubHead, authorizeAdmin, authorizeClubOwnership } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Get all upcoming events
+// Get all upcoming events (public, but shows different info based on user role)
 router.get('/events', async (req, res) => {
     try {
         const [events] = await pool.execute(
@@ -30,7 +31,7 @@ router.get('/events', async (req, res) => {
             LEFT JOIN venues v ON vb.venue_id = v.id
             LEFT JOIN campus ON v.campus_id = campus.id
             LEFT JOIN event_registrations er ON e.id = er.event_id AND er.registration_status = 'Registered'
-            WHERE e.status IN ('Approved', 'Pending_Approval') 
+            WHERE e.status = 'Approved' 
             AND e.event_date >= CURDATE()
             GROUP BY e.id
             ORDER BY e.event_date ASC, e.start_time ASC`
@@ -46,6 +47,247 @@ router.get('/events', async (req, res) => {
         res.status(500).json({
             success: false,
             error: 'Failed to fetch events'
+        });
+    }
+});
+
+// Get pending events (admin only)
+router.get('/events/pending', authenticate, authorizeAdmin, async (req, res) => {
+    try {
+        const [events] = await pool.execute(
+            `SELECT 
+                e.id,
+                e.name,
+                e.description,
+                e.event_date,
+                e.start_time,
+                e.end_time,
+                e.event_type,
+                e.status,
+                e.max_participants,
+                e.registration_required,
+                e.registration_deadline,
+                c.name as club_name,
+                s.name as created_by,
+                s.email as creator_email,
+                v.name as venue_name,
+                e.created_at
+            FROM events e
+            JOIN clubs c ON e.organized_by_club_id = c.id
+            LEFT JOIN students s ON e.created_by_student_id = s.id
+            LEFT JOIN venue_bookings vb ON e.booking_id = vb.id
+            LEFT JOIN venues v ON vb.venue_id = v.id
+            WHERE e.status = 'Pending_Approval'
+            ORDER BY e.created_at ASC`
+        );
+        
+        res.json({
+            success: true,
+            count: events.length,
+            events
+        });
+    } catch (error) {
+        console.error('Error fetching pending events:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to fetch pending events'
+        });
+    }
+});
+
+// Create new event (club heads only)
+router.post('/events', authenticate, authorizeClubHead, async (req, res) => {
+    try {
+        const { 
+            name, 
+            description, 
+            event_date, 
+            start_time, 
+            end_time, 
+            event_type, 
+            max_participants, 
+            registration_required, 
+            registration_deadline,
+            club_id,
+            venue_id 
+        } = req.body;
+
+        if (!name || !event_date || !start_time || !end_time || !club_id) {
+            return res.status(400).json({
+                success: false,
+                error: 'Name, event date, start time, end time, and club ID are required'
+            });
+        }
+
+        // Verify user is head of the specified club
+        const [memberships] = await pool.execute(
+            `SELECT * FROM club_memberships 
+             WHERE student_id = ? AND club_id = ? AND role = 'Head' AND is_active = TRUE`,
+            [req.user.id, club_id]
+        );
+
+        if (memberships.length === 0) {
+            return res.status(403).json({
+                success: false,
+                error: 'You are not authorized to create events for this club'
+            });
+        }
+
+        let booking_id = null;
+        
+        // Create venue booking if venue is specified
+        if (venue_id) {
+            const [bookingResult] = await pool.execute(
+                `INSERT INTO venue_bookings (venue_id, start_time, end_time, booking_type, status, booked_by_club_id) 
+                 VALUES (?, ?, ?, 'Event', 'Pending', ?)`,
+                [venue_id, `${event_date} ${start_time}`, `${event_date} ${end_time}`, club_id]
+            );
+            booking_id = bookingResult.insertId;
+        }
+
+        // Create the event
+        const [result] = await pool.execute(
+            `INSERT INTO events (
+                name, description, event_date, start_time, end_time, event_type, 
+                status, max_participants, registration_required, registration_deadline, 
+                organized_by_club_id, booking_id, created_by_student_id
+            ) VALUES (?, ?, ?, ?, ?, ?, 'Pending_Approval', ?, ?, ?, ?, ?, ?)`,
+            [
+                name, description, event_date, start_time, end_time, event_type,
+                max_participants, registration_required, registration_deadline,
+                club_id, booking_id, req.user.id
+            ]
+        );
+
+        // Get the created event with details
+        const [newEvent] = await pool.execute(
+            `SELECT 
+                e.*,
+                c.name as club_name,
+                v.name as venue_name
+            FROM events e
+            JOIN clubs c ON e.organized_by_club_id = c.id
+            LEFT JOIN venue_bookings vb ON e.booking_id = vb.id
+            LEFT JOIN venues v ON vb.venue_id = v.id
+            WHERE e.id = ?`,
+            [result.insertId]
+        );
+
+        res.status(201).json({
+            success: true,
+            message: 'Event created successfully and is pending approval',
+            event: newEvent[0]
+        });
+    } catch (error) {
+        console.error('Error creating event:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to create event'
+        });
+    }
+});
+
+// Approve event (admin only)
+router.put('/events/:id/approve', authenticate, authorizeAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { approval_notes } = req.body;
+
+        const [result] = await pool.execute(
+            `UPDATE events 
+             SET status = 'Approved', approved_by_admin_id = ?, updated_at = CURRENT_TIMESTAMP
+             WHERE id = ? AND status = 'Pending_Approval'`,
+            [req.user.id, id]
+        );
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Event not found or not pending approval'
+            });
+        }
+
+        // Also approve the venue booking if it exists
+        await pool.execute(
+            `UPDATE venue_bookings vb
+             JOIN events e ON vb.id = e.booking_id
+             SET vb.status = 'Confirmed', vb.approved_by_admin_id = ?
+             WHERE e.id = ?`,
+            [req.user.id, id]
+        );
+
+        // Log the action
+        await pool.execute(
+            `INSERT INTO admin_audit_log (admin_id, action_type, target_type, target_id, description)
+             VALUES (?, 'APPROVE_EVENT', 'EVENT', ?, ?)`,
+            [req.user.id, id, approval_notes || 'Event approved']
+        );
+
+        res.json({
+            success: true,
+            message: 'Event approved successfully'
+        });
+    } catch (error) {
+        console.error('Error approving event:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to approve event'
+        });
+    }
+});
+
+// Reject event (admin only)
+router.put('/events/:id/reject', authenticate, authorizeAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { rejection_reason } = req.body;
+
+        if (!rejection_reason) {
+            return res.status(400).json({
+                success: false,
+                error: 'Rejection reason is required'
+            });
+        }
+
+        const [result] = await pool.execute(
+            `UPDATE events 
+             SET status = 'Rejected', rejection_reason = ?, approved_by_admin_id = ?, updated_at = CURRENT_TIMESTAMP
+             WHERE id = ? AND status = 'Pending_Approval'`,
+            [rejection_reason, req.user.id, id]
+        );
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Event not found or not pending approval'
+            });
+        }
+
+        // Cancel the venue booking if it exists
+        await pool.execute(
+            `UPDATE venue_bookings vb
+             JOIN events e ON vb.id = e.booking_id
+             SET vb.status = 'Cancelled'
+             WHERE e.id = ?`,
+            [id]
+        );
+
+        // Log the action
+        await pool.execute(
+            `INSERT INTO admin_audit_log (admin_id, action_type, target_type, target_id, description)
+             VALUES (?, 'REJECT_EVENT', 'EVENT', ?, ?)`,
+            [req.user.id, id, `Event rejected: ${rejection_reason}`]
+        );
+
+        res.json({
+            success: true,
+            message: 'Event rejected successfully'
+        });
+    } catch (error) {
+        console.error('Error rejecting event:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to reject event'
         });
     }
 });
@@ -76,7 +318,7 @@ router.post('/events/:eventId/register', async (req, res) => {
             const [insertResult] = await connection.execute(
                 `INSERT INTO students (student_id, name, email, phone, password_hash) 
                  VALUES (?, ?, ?, ?, ?)`,
-                [studentIdGenerated, name, email, phone || null, 'clerk_sso'] // Use placeholder for SSO users
+                [studentIdGenerated, name, email, phone || null, 'temp_password'] // Use placeholder for new users
             );
             studentId = insertResult.insertId;
             console.log('Created new student:', studentId);

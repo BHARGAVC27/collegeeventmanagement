@@ -99,6 +99,39 @@ class ApiService {
     return this.apiCall('/students');
   }
 
+  // Authentication API methods
+  async studentLogin(credentials) {
+    return this.apiCall('/auth/student/login', {
+      method: 'POST',
+      body: JSON.stringify(credentials),
+    });
+  }
+
+  async adminLogin(credentials) {
+    return this.apiCall('/auth/admin/login', {
+      method: 'POST',
+      body: JSON.stringify(credentials),
+    });
+  }
+
+  async studentRegister(userData) {
+    return this.apiCall('/auth/student/register', {
+      method: 'POST',
+      body: JSON.stringify(userData),
+    });
+  }
+
+  async getUserProfile() {
+    const token = localStorage.getItem('token');
+    return this.apiCall('/auth/profile', {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+  }
+
   async getStudentById(id) {
     return this.apiCall(`/students/${id}`);
   }

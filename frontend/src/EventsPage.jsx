@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react'
-import { useUser } from '@clerk/clerk-react'
 import { useNavigate } from 'react-router-dom'
 import apiService from './services/apiService'
 import NavBar from './components/NavBar'
@@ -7,32 +6,12 @@ import NavBar from './components/NavBar'
 export default function EventsPage() {
   console.log('EventsPage rendering');
   
-  const { user, isLoaded } = useUser();
   const navigate = useNavigate();
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
   // Get user's name with fallbacks
-  const getUserName = () => {
-    if (!user) return 'User';
-    
-    if (user.firstName) {
-      return user.firstName;
-    }
-    
-    if (user.fullName) {
-      return user.fullName.split(' ')[0];
-    }
-    
-    if (user.emailAddresses?.[0]?.emailAddress) {
-      const email = user.emailAddresses[0].emailAddress;
-      return email.split('@')[0];
-    }
-    
-    return 'User';
-  };
-
   // Get event image based on event type or name
   const getEventImage = (event) => {
     const eventType = event.event_type?.toLowerCase() || '';
@@ -85,12 +64,10 @@ export default function EventsPage() {
       }
     };
 
-    if (isLoaded) {
-      fetchEvents();
-    }
-  }, [isLoaded]);
+    fetchEvents();
+  }, []);
 
-  if (!isLoaded) {
+  if (loading) {
     return (
       <div className="loading-spinner">
         <div className="spinner"></div>
