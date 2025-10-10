@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import apiService from './services/apiService'
-import NavBar from './components/NavBar'
+import apiService from '../../services/apiService'
+import NavBar from '../../components/NavBar'
 
 export default function ClubsPage() {
   const navigate = useNavigate()

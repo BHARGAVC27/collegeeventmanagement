@@ -1,7 +1,7 @@
 ﻿import React, { useState, useEffect } from 'react'
 import { toast, Toaster } from 'sonner'
-import apiService from './services/apiService'
-import NavBar from './components/NavBar'
+import apiService from '../../services/apiService'
+import NavBar from '../../components/NavBar'
 
 export default function MyEvents() {
   const [events, setEvents] = useState([])

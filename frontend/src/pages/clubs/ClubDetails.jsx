@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import apiService from './services/apiService'
-import NavBar from './components/NavBar'
+import apiService from '../../services/apiService'
+import NavBar from '../../components/NavBar'
 
 export default function ClubDetails() {
   const { clubId } = useParams()
