@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Test</title>
+</head>
+<body>
+    <h1>API Test</h1>
+    
+    <h2>Admin Login</h2>
+    <button onclick="loginAdmin()">Login as Admin</button>
+    <div id="loginResult"></div>
+    
+    <h2>Update Club</h2>
+    <button onclick="testUpdateClub()">Test Update Club</button>
+    <div id="updateResult"></div>
+    
+    <h2>View Members</h2>
+    <button onclick="testViewMembers()">Test View Members</button>
+    <div id="membersResult"></div>
+    
+    <h2>Remove Member</h2>
+    <button onclick="testRemoveMember()">Test Remove Member</button>
+    <button onclick="testForceRemove()">Force Remove Member (Admin Override)</button>
+    <div id="removeResult"></div>
+    
+    <h2>Debug Database</h2>
+    <button onclick="debugDatabase()">Check Database State</button>
+    <button onclick="createTestMembers()">Create Test Members</button>
+    <div id="debugResult"></div>
+
+    <script>
+        let authToken = '';
+        
+        async function loginAdmin() {
+            try {
+                const response = await fetch('http://localhost:5000/api/auth/admin/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: 'admin@university.edu',
+                        password: 'admin123'
+                    }),
+                });
+                
+                const data = await response.json();
+                document.getElementById('loginResult').innerHTML = JSON.stringify(data, null, 2);
+                
+                if (data.success && data.token) {
+                    authToken = data.token;
+                    localStorage.setItem('token', authToken);
+                    console.log('Login successful, token:', authToken);
+                }
+            } catch (error) {
+                document.getElementById('loginResult').innerHTML = 'Error: ' + error.message;
+            }
+        }
+        
+        async function testUpdateClub() {
+            if (!authToken) {
+                document.getElementById('updateResult').innerHTML = 'Please login first';
+                return;
+            }
+            
+            try {
+                const response = await fetch('http://localhost:5000/api/admin/clubs/1', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`,
+                    },
+                    body: JSON.stringify({
+                        name: 'Updated Club Name',
+                        description: 'Updated description for testing',
+                        faculty_coordinator_id: null,
+                        campus_id: 1
+                    }),
+                });
+                
+                const data = await response.json();
+                document.getElementById('updateResult').innerHTML = JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('updateResult').innerHTML = 'Error: ' + error.message;
+            }
+        }
+        
+        async function testViewMembers() {
+            if (!authToken) {
+                document.getElementById('membersResult').innerHTML = 'Please login first';
+                return;
+            }
+            
+            try {
+                const response = await fetch('http://localhost:5000/api/admin/clubs/1/members', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`,
+                    },
+                });
+                
+                const data = await response.json();
+                document.getElementById('membersResult').innerHTML = JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('membersResult').innerHTML = 'Error: ' + error.message;
+            }
+        }
+        
+        async function testRemoveMember() {
+            if (!authToken) {
+                document.getElementById('removeResult').innerHTML = 'Please login first';
+                return;
+            }
+            
+            try {
+                // First get members to find a valid member ID
+                const membersResponse = await fetch('http://localhost:5000/api/admin/clubs/1/members', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`,
+                    },
+                });
+                
+                const membersData = await membersResponse.json();
+                if (membersData.success && membersData.members && membersData.members.length > 0) {
+                    // Try to remove the first member that's not a head
+                    const memberToRemove = membersData.members.find(m => m.role !== 'Head');
+                    if (memberToRemove) {
+                        const response = await fetch(`http://localhost:5000/api/admin/clubs/1/members/${memberToRemove.id}`, {
+                            method: 'DELETE',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${authToken}`,
+                            },
+                        });
+                        
+                        const data = await response.json();
+                        document.getElementById('removeResult').innerHTML = JSON.stringify(data, null, 2);
+                    } else {
+                        document.getElementById('removeResult').innerHTML = 'No removable members found (only heads)';
+                    }
+                } else {
+                    document.getElementById('removeResult').innerHTML = 'Could not fetch members: ' + JSON.stringify(membersData);
+                }
+            } catch (error) {
+                document.getElementById('removeResult').innerHTML = 'Error: ' + error.message;
+            }
+        }
+        
+        async function debugDatabase() {
+            if (!authToken) {
+                document.getElementById('debugResult').innerHTML = 'Please login first';
+                return;
+            }
+            
+            try {
+                const response = await fetch('http://localhost:5000/api/admin/debug/database-state', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`,
+                    },
+                });
+                
+                const data = await response.json();
+                document.getElementById('debugResult').innerHTML = JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('debugResult').innerHTML = 'Error: ' + error.message;
+            }
+        }
+        
+        async function createTestMembers() {
+            if (!authToken) {
+                document.getElementById('debugResult').innerHTML = 'Please login first';
+                return;
+            }
+            
+            try {
+                const response = await fetch('http://localhost:5000/api/admin/debug/create-test-members', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`,
+                    },
+                });
+                
+                const data = await response.json();
+                document.getElementById('debugResult').innerHTML = 'Test Members Created: ' + JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('debugResult').innerHTML = 'Error: ' + error.message;
+            }
+        }
+        
+        async function testForceRemove() {
+            if (!authToken) {
+                document.getElementById('removeResult').innerHTML = 'Please login first';
+                return;
+            }
+            
+            const memberId = prompt('Enter member ID to force remove:');
+            if (!memberId) return;
+            
+            try {
+                const response = await fetch(`http://localhost:5000/api/admin/clubs/1/members/${memberId}/force`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`,
+                    },
+                });
+                
+                const data = await response.json();
+                document.getElementById('removeResult').innerHTML = 'Force Remove Result: ' + JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('removeResult').innerHTML = 'Force Remove Error: ' + error.message;
+            }
+        }
+    </script>
+</body>
+</html>

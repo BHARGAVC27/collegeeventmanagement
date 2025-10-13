@@ -84,6 +84,7 @@ class ApiService {
   }
 
   async joinClub(clubId, email) {
+    console.log('Joining club:', { clubId, email });
     return this.apiCall(`/clubs/${clubId}/join`, {
       method: 'POST',
       body: JSON.stringify({ email }),
@@ -91,7 +92,14 @@ class ApiService {
   }
 
   async getClubMembers(clubId) {
-    return this.apiCall(`/clubs/${clubId}/members`);
+    const token = localStorage.getItem('token');
+    return this.apiCall(`/admin/clubs/${clubId}/members`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
   }
 
   // Students API methods
@@ -140,6 +148,136 @@ class ApiService {
     return this.apiCall(`/students/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
+    });
+  }
+
+  // Admin API methods
+  async getAdminDashboardStats() {
+    const token = localStorage.getItem('token');
+    return this.apiCall('/admin/dashboard/stats', {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+  }
+
+  async getPendingEvents() {
+    const token = localStorage.getItem('token');
+    return this.apiCall('/events/pending', {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+  }
+
+  async approveEvent(eventId) {
+    const token = localStorage.getItem('token');
+    return this.apiCall(`/admin/events/${eventId}/approve`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+  }
+
+  async rejectEvent(eventId, reason) {
+    const token = localStorage.getItem('token');
+    return this.apiCall(`/admin/events/${eventId}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+  }
+
+  async createClub(clubData) {
+    const token = localStorage.getItem('token');
+    return this.apiCall('/admin/clubs', {
+      method: 'POST',
+      body: JSON.stringify(clubData),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+  }
+
+  async getAllUsers() {
+    const token = localStorage.getItem('token');
+    return this.apiCall('/admin/users', {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+  }
+
+  async updateUserRole(userId, userType, roleData) {
+    const token = localStorage.getItem('token');
+    return this.apiCall(`/admin/users/${userId}/role`, {
+      method: 'PUT',
+      body: JSON.stringify({ userType, ...roleData }),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+  }
+
+  async getAvailableFaculty() {
+    const token = localStorage.getItem('token');
+    return this.apiCall('/admin/faculty', {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+  }
+
+  async getAvailableCampuses() {
+    const token = localStorage.getItem('token');
+    return this.apiCall('/admin/campuses', {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+  }
+
+  async updateClub(clubId, clubData) {
+    const token = localStorage.getItem('token');
+    return this.apiCall(`/admin/clubs/${clubId}`, {
+      method: 'PUT',
+      body: JSON.stringify(clubData),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+  }
+
+  async removeClubMember(clubId, memberId, force = false) {
+    const token = localStorage.getItem('token');
+    const endpoint = force 
+      ? `/admin/clubs/${clubId}/members/${memberId}/force`
+      : `/admin/clubs/${clubId}/members/${memberId}`;
+    
+    return this.apiCall(endpoint, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
     });
   }
 

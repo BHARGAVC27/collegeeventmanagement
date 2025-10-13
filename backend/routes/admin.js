@@ -12,6 +12,8 @@ router.get('/clubs', authenticate, authorizeAdmin, async (req, res) => {
                 c.id,
                 c.name,
                 c.description,
+                c.faculty_coordinator_id,
+                c.campus_id,
                 c.approval_status,
                 c.is_active,
                 c.created_at,
@@ -131,57 +133,97 @@ router.post('/clubs', authenticate, authorizeAdmin, async (req, res) => {
 router.put('/clubs/:id', authenticate, authorizeAdmin, async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, description, faculty_coordinator_id, is_active } = req.body;
+        const { name, description, faculty_coordinator_id, campus_id } = req.body;
 
-        // Build dynamic update query
-        const updateFields = [];
-        const updateValues = [];
+        console.log('Update club request:', { id, name, description, faculty_coordinator_id, campus_id });
 
-        if (name !== undefined) {
-            updateFields.push('name = ?');
-            updateValues.push(name);
-        }
-        if (description !== undefined) {
-            updateFields.push('description = ?');
-            updateValues.push(description);
-        }
-        if (faculty_coordinator_id !== undefined) {
-            updateFields.push('faculty_coordinator_id = ?');
-            updateValues.push(faculty_coordinator_id);
-        }
-        if (is_active !== undefined) {
-            updateFields.push('is_active = ?');
-            updateValues.push(is_active);
-        }
-
-        if (updateFields.length === 0) {
+        // Validation
+        if (!name || !description || !campus_id) {
+            console.log('Validation failed:', { name: !!name, description: !!description, campus_id: !!campus_id });
             return res.status(400).json({
                 success: false,
-                error: 'No fields to update'
+                error: 'Name, description, and campus_id are required'
             });
         }
 
-        updateFields.push('updated_at = CURRENT_TIMESTAMP');
-        updateValues.push(id);
-
-        const [result] = await pool.execute(
-            `UPDATE clubs SET ${updateFields.join(', ')} WHERE id = ?`,
-            updateValues
+        // Check if club exists
+        const [existingClub] = await pool.execute(
+            'SELECT * FROM clubs WHERE id = ?',
+            [id]
         );
 
-        if (result.affectedRows === 0) {
+        if (existingClub.length === 0) {
             return res.status(404).json({
                 success: false,
                 error: 'Club not found'
             });
         }
 
-        // Log the action
-        await pool.execute(
-            `INSERT INTO admin_audit_log (admin_id, action_type, target_type, target_id, description)
-             VALUES (?, 'UPDATE_CLUB', 'CLUB', ?, ?)`,
-            [req.user.id, id, 'Updated club information']
+        // Check if name is already taken by another club
+        const [nameCheck] = await pool.execute(
+            'SELECT id FROM clubs WHERE name = ? AND id != ? AND is_active = TRUE',
+            [name, id]
         );
+
+        if (nameCheck.length > 0) {
+            return res.status(409).json({
+                success: false,
+                error: 'Club name already exists'
+            });
+        }
+
+        // Verify campus exists
+        const [campus] = await pool.execute('SELECT id FROM campus WHERE id = ?', [campus_id]);
+        if (campus.length === 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid campus ID'
+            });
+        }
+
+        // Verify faculty coordinator if provided
+        if (faculty_coordinator_id) {
+            const [faculty] = await pool.execute('SELECT id FROM faculty_admin WHERE id = ?', [faculty_coordinator_id]);
+            if (faculty.length === 0) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Invalid faculty coordinator ID'
+                });
+            }
+        }
+
+        // Update club
+        const [updateResult] = await pool.execute(
+            `UPDATE clubs SET 
+                name = ?, 
+                description = ?, 
+                faculty_coordinator_id = ?, 
+                campus_id = ?, 
+                updated_at = CURRENT_TIMESTAMP 
+             WHERE id = ?`,
+            [name, description, faculty_coordinator_id || null, campus_id, id]
+        );
+
+        console.log('Update result:', updateResult);
+
+        if (updateResult.affectedRows === 0) {
+            console.log('No rows were updated for club ID:', id);
+            return res.status(404).json({
+                success: false,
+                error: 'Club not found or no changes made'
+            });
+        }
+
+        // Log the action (skip for now to isolate issues)
+        try {
+            await pool.execute(
+                `INSERT INTO admin_audit_log (admin_id, action_type, target_type, target_id, description)
+                 VALUES (?, 'OTHER', 'CLUB', ?, ?)`,
+                [req.user.id, id, `Updated club: ${name}`]
+            );
+        } catch (auditError) {
+            console.log('Audit log error (non-critical):', auditError.message);
+        }
 
         res.json({
             success: true,
@@ -415,6 +457,395 @@ router.get('/dashboard/stats', authenticate, authorizeAdmin, async (req, res) =>
         res.status(500).json({
             success: false,
             error: 'Failed to fetch dashboard statistics'
+        });
+    }
+});
+
+// Get available faculty coordinators
+router.get('/faculty', authenticate, authorizeAdmin, async (req, res) => {
+    try {
+        const [faculty] = await pool.execute(
+            `SELECT id, name, email, department, designation 
+             FROM faculty_admin 
+             WHERE user_role_id = 3 AND is_active = TRUE 
+             ORDER BY name ASC`
+        );
+
+        res.json({
+            success: true,
+            faculty
+        });
+    } catch (error) {
+        console.error('Error fetching faculty:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to fetch faculty list'
+        });
+    }
+});
+
+// Get available campuses
+router.get('/campuses', authenticate, authorizeAdmin, async (req, res) => {
+    try {
+        const [campuses] = await pool.execute(
+            `SELECT id, name, location 
+             FROM campus 
+             ORDER BY name ASC`
+        );
+
+        res.json({
+            success: true,
+            campuses
+        });
+    } catch (error) {
+        console.error('Error fetching campuses:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to fetch campus list'
+        });
+    }
+});
+
+// Get club members (admin access)
+router.get('/clubs/:id/members', authenticate, authorizeAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        console.log('Get members request for club ID:', id);
+        
+        // Check if club exists
+        const [club] = await pool.execute(
+            'SELECT id, name FROM clubs WHERE id = ? AND is_active = TRUE',
+            [id]
+        );
+
+        console.log('Club check result:', club.length, club[0]);
+
+        if (club.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Club not found'
+            });
+        }
+
+        const [members] = await pool.execute(
+            `SELECT 
+                cm.id,
+                s.id as student_db_id,
+                s.student_id,
+                s.name,
+                s.email,
+                cm.role,
+                cm.join_date
+            FROM club_memberships cm
+            JOIN students s ON cm.student_id = s.id
+            WHERE cm.club_id = ? AND cm.is_active = TRUE
+            ORDER BY 
+                CASE cm.role 
+                    WHEN 'Head' THEN 1 
+                    WHEN 'Member' THEN 2 
+                END,
+                cm.join_date ASC`,
+            [id]
+        );
+
+        console.log('Members query result:', members.length, 'members found');
+        console.log('First few members:', members.slice(0, 3));
+        
+        // Also check raw memberships for debugging
+        const [rawMemberships] = await pool.execute(
+            'SELECT * FROM club_memberships WHERE club_id = ?',
+            [id]
+        );
+        console.log('Raw memberships (including inactive):', rawMemberships.length);
+        
+        // Check if students table has data
+        const [studentCount] = await pool.execute('SELECT COUNT(*) as count FROM students');
+        console.log('Total students in database:', studentCount[0].count);
+        
+        res.json({
+            success: true,
+            count: members.length,
+            members,
+            club: club[0]
+        });
+    } catch (error) {
+        console.error('Error fetching club members:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to fetch club members'
+        });
+    }
+});
+
+// Remove club member (admin access)
+router.delete('/clubs/:clubId/members/:memberId', authenticate, authorizeAdmin, async (req, res) => {
+    try {
+        const { clubId, memberId } = req.params;
+        
+        console.log('Remove member request:', { clubId, memberId });
+        
+        // First check if the club exists
+        const [clubCheck] = await pool.execute(
+            'SELECT id, name FROM clubs WHERE id = ? AND is_active = TRUE',
+            [clubId]
+        );
+
+        if (clubCheck.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Club not found'
+            });
+        }
+
+        // Check if membership exists (more comprehensive check)
+        const [membership] = await pool.execute(
+            `SELECT cm.*, s.name as student_name, c.name as club_name
+             FROM club_memberships cm
+             JOIN students s ON cm.student_id = s.id
+             JOIN clubs c ON cm.club_id = c.id
+             WHERE cm.id = ? AND cm.club_id = ? AND cm.is_active = TRUE`,
+            [memberId, clubId]
+        );
+
+        console.log('Membership query result:', membership.length, membership[0]);
+
+        if (membership.length === 0) {
+            // Provide more detailed error info
+            const [allMemberships] = await pool.execute(
+                `SELECT cm.id, cm.role, s.name as student_name 
+                 FROM club_memberships cm 
+                 JOIN students s ON cm.student_id = s.id 
+                 WHERE cm.club_id = ? AND cm.is_active = TRUE`,
+                [clubId]
+            );
+            
+            console.log('Available memberships in club:', allMemberships);
+            
+            return res.status(404).json({
+                success: false,
+                error: 'Membership not found',
+                availableMemberIds: allMemberships.map(m => m.id),
+                clubId: clubId,
+                requestedMemberId: memberId
+            });
+        }
+
+        // Prevent removing club heads (but allow admin override)
+        if (membership[0].role === 'Head') {
+            console.log('Attempting to remove club head');
+            // Admin can remove heads, but we'll warn them
+            return res.status(403).json({
+                success: false,
+                error: 'Cannot remove club head. Please assign a new head first, or use force removal if needed.'
+            });
+        }
+
+        // Remove membership (soft delete)
+        const [removeResult] = await pool.execute(
+            'UPDATE club_memberships SET is_active = FALSE, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+            [memberId]
+        );
+
+        console.log('Remove result:', removeResult);
+
+        if (removeResult.affectedRows === 0) {
+            return res.status(500).json({
+                success: false,
+                error: 'Failed to remove member - no rows affected'
+            });
+        }
+
+        // Log the action (skip for now to isolate issues)
+        try {
+            await pool.execute(
+                `INSERT INTO admin_audit_log (admin_id, action_type, target_type, target_id, description)
+                 VALUES (?, 'OTHER', 'OTHER', ?, ?)`,
+                [req.user.id, memberId, `Removed ${membership[0].student_name} from ${membership[0].club_name}`]
+            );
+        } catch (auditError) {
+            console.log('Audit log error (non-critical):', auditError.message);
+        }
+
+        res.json({
+            success: true,
+            message: `Successfully removed ${membership[0].student_name} from ${membership[0].club_name}`,
+            removedMember: {
+                name: membership[0].student_name,
+                club: membership[0].club_name
+            }
+        });
+    } catch (error) {
+        console.error('Error removing club member:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to remove club member'
+        });
+    }
+});
+
+// Debug endpoint to check database state
+router.get('/debug/database-state', authenticate, authorizeAdmin, async (req, res) => {
+    try {
+        // Check clubs
+        const [clubs] = await pool.execute('SELECT id, name FROM clubs LIMIT 5');
+        
+        // Check students  
+        const [students] = await pool.execute('SELECT id, student_id, name, email FROM students LIMIT 5');
+        
+        // Check memberships
+        const [memberships] = await pool.execute(`
+            SELECT cm.*, s.name as student_name, c.name as club_name 
+            FROM club_memberships cm 
+            LEFT JOIN students s ON cm.student_id = s.id 
+            LEFT JOIN clubs c ON cm.club_id = c.id 
+            LIMIT 10
+        `);
+        
+        res.json({
+            success: true,
+            data: {
+                clubs: clubs.length,
+                students: students.length,  
+                memberships: memberships.length,
+                sampleClubs: clubs,
+                sampleStudents: students,
+                sampleMemberships: memberships
+            }
+        });
+    } catch (error) {
+        console.error('Debug endpoint error:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+// Create test members for clubs (admin only)
+router.post('/debug/create-test-members', authenticate, authorizeAdmin, async (req, res) => {
+    try {
+        // First, let's check if students exist and create some if needed
+        const [existingStudents] = await pool.execute('SELECT COUNT(*) as count FROM students');
+        
+        if (existingStudents[0].count < 5) {
+            // Create some test students
+            const testStudents = [
+                { student_id: 'STU001', name: 'Alice Johnson', email: 'alice.johnson@university.edu', password: 'password123' },
+                { student_id: 'STU002', name: 'Bob Smith', email: 'bob.smith@university.edu', password: 'password123' },
+                { student_id: 'STU003', name: 'Charlie Brown', email: 'charlie.brown@university.edu', password: 'password123' },
+                { student_id: 'STU004', name: 'Diana Prince', email: 'diana.prince@university.edu', password: 'password123' },
+                { student_id: 'STU005', name: 'Eve Wilson', email: 'eve.wilson@university.edu', password: 'password123' }
+            ];
+
+            for (const student of testStudents) {
+                await pool.execute(
+                    `INSERT IGNORE INTO students (student_id, name, email, password, campus_id) 
+                     VALUES (?, ?, ?, ?, 1)`,
+                    [student.student_id, student.name, student.email, student.password]
+                );
+            }
+        }
+
+        // Get students for membership creation
+        const [students] = await pool.execute('SELECT id, name FROM students LIMIT 5');
+        const [clubs] = await pool.execute('SELECT id, name FROM clubs WHERE is_active = TRUE LIMIT 3');
+
+        let membersCreated = 0;
+
+        // Create memberships for each club
+        for (const club of clubs) {
+            for (let i = 0; i < Math.min(3, students.length); i++) {
+                const student = students[i];
+                
+                // Check if membership already exists
+                const [existing] = await pool.execute(
+                    'SELECT id FROM club_memberships WHERE student_id = ? AND club_id = ?',
+                    [student.id, club.id]
+                );
+
+                if (existing.length === 0) {
+                    await pool.execute(
+                        `INSERT INTO club_memberships (student_id, club_id, role, is_active) 
+                         VALUES (?, ?, 'Member', TRUE)`,
+                        [student.id, club.id]
+                    );
+                    membersCreated++;
+                }
+            }
+        }
+
+        res.json({
+            success: true,
+            message: `Created ${membersCreated} test memberships`,
+            studentsAvailable: students.length,
+            clubsAvailable: clubs.length
+        });
+
+    } catch (error) {
+        console.error('Error creating test members:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+// Force remove any member (including heads) - Admin ultimate power
+router.delete('/clubs/:clubId/members/:memberId/force', authenticate, authorizeAdmin, async (req, res) => {
+    try {
+        const { clubId, memberId } = req.params;
+        
+        console.log('Force remove member request:', { clubId, memberId });
+        
+        // Get membership info before removal
+        const [membership] = await pool.execute(
+            `SELECT cm.*, s.name as student_name, c.name as club_name
+             FROM club_memberships cm
+             JOIN students s ON cm.student_id = s.id
+             JOIN clubs c ON cm.club_id = c.id
+             WHERE cm.id = ? AND cm.club_id = ? AND cm.is_active = TRUE`,
+            [memberId, clubId]
+        );
+
+        if (membership.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Membership not found'
+            });
+        }
+
+        // Force remove (even heads)
+        const [removeResult] = await pool.execute(
+            'UPDATE club_memberships SET is_active = FALSE, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+            [memberId]
+        );
+
+        // Log the action
+        try {
+            await pool.execute(
+                `INSERT INTO admin_audit_log (admin_id, action_type, target_type, target_id, description)
+                 VALUES (?, 'OTHER', 'OTHER', ?, ?)`,
+                [req.user.id, memberId, `FORCE REMOVED ${membership[0].student_name} (${membership[0].role}) from ${membership[0].club_name}`]
+            );
+        } catch (auditError) {
+            console.log('Audit log error (non-critical):', auditError.message);
+        }
+
+        res.json({
+            success: true,
+            message: `Successfully force removed ${membership[0].student_name} (${membership[0].role}) from ${membership[0].club_name}`,
+            removedMember: {
+                name: membership[0].student_name,
+                role: membership[0].role,
+                club: membership[0].club_name
+            }
+        });
+    } catch (error) {
+        console.error('Error force removing member:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to force remove member'
         });
     }
 });

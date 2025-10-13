@@ -11,17 +11,19 @@ router.get('/clubs', async (req, res) => {
                 c.id,
                 c.name,
                 c.description,
-                c.faculty_coordinator,
+                c.faculty_coordinator_id,
+                fa.name as faculty_coordinator,
                 c.is_active,
                 COUNT(DISTINCT cm.id) as member_count,
                 s.name as head_name,
                 s.email as head_email
             FROM clubs c
+            LEFT JOIN faculty_admin fa ON c.faculty_coordinator_id = fa.id
             LEFT JOIN club_memberships cm ON c.id = cm.club_id AND cm.is_active = TRUE
             LEFT JOIN club_memberships head_cm ON c.id = head_cm.club_id AND head_cm.role = 'Head' AND head_cm.is_active = TRUE
             LEFT JOIN students s ON head_cm.student_id = s.id
             WHERE c.is_active = TRUE
-            GROUP BY c.id, s.name, s.email
+            GROUP BY c.id, fa.name, s.name, s.email
             ORDER BY c.name ASC`
         );
         
@@ -49,17 +51,19 @@ router.get('/clubs/:id', async (req, res) => {
                 c.id,
                 c.name,
                 c.description,
-                c.faculty_coordinator,
+                c.faculty_coordinator_id,
+                fa.name as faculty_coordinator,
                 c.is_active,
                 COUNT(DISTINCT cm.id) as member_count,
                 s.name as head_name,
                 s.email as head_email
             FROM clubs c
+            LEFT JOIN faculty_admin fa ON c.faculty_coordinator_id = fa.id
             LEFT JOIN club_memberships cm ON c.id = cm.club_id AND cm.is_active = TRUE
             LEFT JOIN club_memberships head_cm ON c.id = head_cm.club_id AND head_cm.role = 'Head' AND head_cm.is_active = TRUE
             LEFT JOIN students s ON head_cm.student_id = s.id
             WHERE c.id = ?
-            GROUP BY c.id, s.name, s.email`,
+            GROUP BY c.id, fa.name, s.name, s.email`,
             [id]
         );
         

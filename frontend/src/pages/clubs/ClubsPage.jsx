@@ -32,7 +32,11 @@ export default function ClubsPage() {
 
   const handleJoinClub = async (clubId, clubName) => {
     const token = localStorage.getItem('token')
-    if (!token) {
+    const user = JSON.parse(localStorage.getItem('user') || '{}')
+    
+    console.log('Join club attempt:', { clubId, clubName, userEmail: user.email, hasToken: !!token })
+    
+    if (!token || !user.email) {
       alert('Please log in to join a club')
       navigate('/login')
       return
@@ -40,7 +44,7 @@ export default function ClubsPage() {
 
     setJoiningClub(clubId)
     try {
-      const response = await apiService.joinClub(clubId)
+      const response = await apiService.joinClub(clubId, user.email)
 
       if (response.success) {
         alert(`Successfully joined ${clubName}!`)
