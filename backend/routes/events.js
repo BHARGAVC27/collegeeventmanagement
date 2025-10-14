@@ -4,6 +4,30 @@ const { authenticate, authorizeStudent, authorizeClubHead, authorizeAdmin, autho
 
 const router = express.Router();
 
+// Get all venues (for event creation)
+router.get('/venues', async (req, res) => {
+    try {
+        const [venues] = await pool.execute(
+            `SELECT v.id, v.name, v.type, v.capacity, v.equipment, c.name as campus_name
+             FROM venues v 
+             LEFT JOIN campus c ON v.campus_id = c.id
+             WHERE v.is_active = TRUE 
+             ORDER BY c.name ASC, v.name ASC`
+        );
+
+        res.json({
+            success: true,
+            venues
+        });
+    } catch (error) {
+        console.error('Error fetching venues:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to fetch venues'
+        });
+    }
+});
+
 // Get all upcoming events (public, but shows different info based on user role)
 router.get('/events', async (req, res) => {
     try {

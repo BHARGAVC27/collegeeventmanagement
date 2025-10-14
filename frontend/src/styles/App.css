@@ -195,6 +195,18 @@ html, body, #root{
   color: white;
 }
 
+.nav-btn.create-event-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  font-weight: 700;
+}
+
+.nav-btn.create-event-btn:hover {
+  background: linear-gradient(135deg, #5a67d8 0%, #667eea 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+}
+
 .profile-btn-wrapper {
   display: flex;
   align-items: center;

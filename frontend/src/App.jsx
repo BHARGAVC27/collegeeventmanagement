@@ -6,6 +6,7 @@ import LoginPage from './pages/auth/LoginPage'
 import RegisterPage from './pages/auth/RegisterPage'
 import DashboardPage from './pages/DashboardPage'
 import EventsPage from './pages/events/EventsPage'
+import CreateEvent from './pages/events/CreateEvent'
 import EventRegister from './pages/events/EventRegister'
 import ClubsPage from './pages/clubs/ClubsPage'
 import ClubDetails from './pages/clubs/ClubDetails'
@@ -54,6 +55,14 @@ function App() {
         element={
           <ProtectedRoute>
             <EventsPage />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/create-event" 
+        element={
+          <ProtectedRoute>
+            <CreateEvent />
           </ProtectedRoute>
         } 
       />

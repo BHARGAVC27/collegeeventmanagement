@@ -850,4 +850,42 @@ router.delete('/clubs/:clubId/members/:memberId/force', authenticate, authorizeA
     }
 });
 
+// Populate sample data endpoint (for development)
+router.post('/populate-sample-data', async (req, res) => {
+    try {
+        // Insert sample campus data
+        await pool.execute(`
+            INSERT IGNORE INTO campus (id, name, location, contact_person, contact_email, is_active) VALUES
+            (1, 'Main Campus', '123 University Ave, City, State 12345', 'Campus Director', 'campus@university.edu', TRUE),
+            (2, 'North Campus', '456 College St, City, State 12346', 'North Director', 'north@university.edu', TRUE)
+        `);
+
+        // Insert sample venues
+        await pool.execute(`
+            INSERT IGNORE INTO venues (name, type, capacity, equipment, campus_id, is_active) VALUES
+            ('Main Auditorium', 'Auditorium', 500, 'Projector, Sound System, Stage Lighting', 1, TRUE),
+            ('Conference Hall A', 'Hall', 100, 'Projector, Whiteboard, AC', 1, TRUE),
+            ('Conference Hall B', 'Hall', 80, 'Projector, Whiteboard, AC', 1, TRUE),
+            ('Computer Lab 1', 'Laboratory', 40, '40 PCs, Projector, AC', 1, TRUE),
+            ('Seminar Room 101', 'Classroom', 50, 'Projector, Whiteboard, AC', 1, TRUE),
+            ('Sports Ground', 'Ground', 200, 'Open field, Lighting', 1, TRUE),
+            ('Library Hall', 'Hall', 150, 'Projector, Sound System, AC', 1, TRUE),
+            ('North Auditorium', 'Auditorium', 300, 'Projector, Sound System, Stage', 2, TRUE),
+            ('Meeting Room 201', 'Classroom', 30, 'Projector, Whiteboard, AC', 2, TRUE),
+            ('Innovation Lab', 'Laboratory', 25, 'Smart Boards, Computers, AC', 2, TRUE)
+        `);
+
+        res.json({
+            success: true,
+            message: 'Sample data populated successfully'
+        });
+    } catch (error) {
+        console.error('Error populating sample data:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to populate sample data'
+        });
+    }
+});
+
 module.exports = router;

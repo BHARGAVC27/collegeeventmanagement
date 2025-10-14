@@ -58,6 +58,24 @@ class ApiService {
     return this.apiCall(`/events/my-registrations?email=${encodeURIComponent(email)}`);
   }
 
+  // Create new event (club heads only)
+  async createEvent(eventData) {
+    const token = localStorage.getItem('token');
+    return this.apiCall('/events', {
+      method: 'POST',
+      body: JSON.stringify(eventData),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+  }
+
+  // Get venues for event creation
+  async getVenues() {
+    return this.apiCall('/venues');
+  }
+
   // Register for an event
   async registerForEvent(eventId, registrationData) {
     return this.apiCall(`/events/${eventId}/register`, {
@@ -176,8 +194,8 @@ class ApiService {
 
   async approveEvent(eventId) {
     const token = localStorage.getItem('token');
-    return this.apiCall(`/admin/events/${eventId}/approve`, {
-      method: 'POST',
+    return this.apiCall(`/events/${eventId}/approve`, {
+      method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,
@@ -187,9 +205,9 @@ class ApiService {
 
   async rejectEvent(eventId, reason) {
     const token = localStorage.getItem('token');
-    return this.apiCall(`/admin/events/${eventId}/reject`, {
-      method: 'POST',
-      body: JSON.stringify({ reason }),
+    return this.apiCall(`/events/${eventId}/reject`, {
+      method: 'PUT',
+      body: JSON.stringify({ rejection_reason: reason }),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,

@@ -9,8 +9,17 @@ export default function NavBar({ activePage = '' }) {
     localStorage.removeItem('token')
     localStorage.removeItem('userRole')
     localStorage.removeItem('userId')
+    localStorage.removeItem('user')
+    localStorage.removeItem('userType')
     // Redirect to home page
     navigate('/')
+  }
+
+  // Check if user is club head
+  const isClubHead = () => {
+    const user = JSON.parse(localStorage.getItem('user') || '{}')
+    const userType = localStorage.getItem('userType')
+    return userType === 'student' && user.role?.includes('club_head')
   }
 
   return (
@@ -49,6 +58,16 @@ export default function NavBar({ activePage = '' }) {
         >
           My Events
         </button>
+        
+        {/* Show Create Event button only for club heads */}
+        {isClubHead() && (
+          <button 
+            className={`nav-btn create-event-btn ${activePage === 'create-event' ? 'active' : ''}`} 
+            onClick={() => navigate('/create-event')}
+          >
+            Create Event
+          </button>
+        )}
         
       </div>
       <div className="nav-right">
