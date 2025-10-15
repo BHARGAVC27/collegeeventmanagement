@@ -55,7 +55,12 @@ class ApiService {
 
   // Get user's registered events by email
   async getMyRegisteredEvents(email) {
-    return this.apiCall(`/events/my-registrations?email=${encodeURIComponent(email)}`);
+    return this.apiCall(`/events/my-registrations?email=${encodeURIComponent(email)}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
   }
 
   // Create new event (club heads only)
@@ -89,6 +94,9 @@ class ApiService {
     return this.apiCall(`/events/${eventId}/register`, {
       method: 'DELETE',
       body: JSON.stringify({ email }),
+      headers: {
+        'Content-Type': 'application/json',
+      },
     });
   }
 

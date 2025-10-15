@@ -11,29 +11,35 @@ export default function MyEvents() {
 
   const getUserName = () => {
     if (!user) return 'User'
-    return user.first_name || user.name?.split(' ')[0] || 'User'
+    
+    if (user.name) {
+      return user.name.split(' ')[0]
+    }
+    
+    if (user.email) {
+      return user.email.split('@')[0]
+    }
+    
+    return 'User'
   }
 
   useEffect(() => {
-    // Get user info from localStorage or fetch from API
+    // Get user info from localStorage
     const token = localStorage.getItem('token')
-    const userId = localStorage.getItem('userId')
+    const userData = JSON.parse(localStorage.getItem('user') || '{}')
     
-    if (!token || !userId) {
+    if (!token || !userData.email) {
       setLoading(false)
       return
     }
 
-    const fetchUserAndEvents = async () => {
+    const fetchMyEvents = async () => {
       try {
         setLoading(true)
+        setUser(userData)
         
-        // Fetch user profile to get email
-        const userProfile = await apiService.getUserProfile()
-        setUser(userProfile.user)
-        
-        // Fetch user's registered events
-        const response = await apiService.getMyRegisteredEvents(userProfile.user.email)
+        // Fetch user's registered events using email from localStorage
+        const response = await apiService.getMyRegisteredEvents(userData.email)
         
         if (response.success) {
           setEvents(response.events || [])
@@ -50,7 +56,7 @@ export default function MyEvents() {
       }
     }
 
-    fetchUserAndEvents()
+    fetchMyEvents()
   }, [])
 
   const getEventImage = (event) => {
@@ -88,7 +94,7 @@ export default function MyEvents() {
     }
 
     try {
-      const email = user.emailAddresses[0].emailAddress
+      const email = user.email
       const response = await apiService.cancelEventRegistration(eventId, email)
       
       if (response.success) {

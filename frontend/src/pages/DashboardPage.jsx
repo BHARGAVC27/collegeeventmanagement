@@ -99,7 +99,7 @@ export default function DashboardPage() {
               <div className="action-buttons">
                 <button 
                   className="action-btn primary"
-                  onClick={() => navigate('/events/create')}
+                  onClick={() => navigate('/create-event')}
                 >
                   Create Event
                 </button>
