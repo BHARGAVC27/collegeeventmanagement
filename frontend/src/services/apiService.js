@@ -307,6 +307,87 @@ class ApiService {
     });
   }
 
+  async getAuditLogs() {
+    const token = localStorage.getItem('token');
+    return this.apiCall('/admin/audit-log', {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+  }
+
+  async getRegistrationActivity() {
+    const token = localStorage.getItem('token');
+    return this.apiCall('/admin/registration-activity', {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+  }
+
+  async getEventStatistics() {
+    const token = localStorage.getItem('token');
+    return this.apiCall('/admin/event-statistics', {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+  }
+
+  // Stored Procedure: Get Event Summary
+  async getEventSummary(eventId) {
+    const token = localStorage.getItem('token');
+    return this.apiCall(`/admin/procedure/event-summary/${eventId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+  }
+
+  // Nested Query: Get Highly Active Students
+  async getActiveStudents() {
+    const token = localStorage.getItem('token');
+    return this.apiCall('/admin/nested-query/active-students', {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+  }
+
+  // JOIN Query: Get Event Details with Multiple JOINs
+  async getEventDetailsWithJoins() {
+    const token = localStorage.getItem('token');
+    return this.apiCall('/admin/join-query/event-details', {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+  }
+
+  // Aggregate Query: Get Club Statistics with Aggregate Functions
+  async getClubStatistics() {
+    const token = localStorage.getItem('token');
+    return this.apiCall('/admin/aggregate-query/club-stats', {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+  }
+
   // Utility methods
   formatEventDate(dateString) {
     const date = new Date(dateString);

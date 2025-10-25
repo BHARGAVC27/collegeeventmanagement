@@ -240,12 +240,7 @@ router.put('/events/:id/approve', authenticate, authorizeAdmin, async (req, res)
             [req.user.id, id]
         );
 
-        // Log the action
-        await pool.execute(
-            `INSERT INTO admin_audit_log (admin_id, action_type, target_type, target_id, description)
-             VALUES (?, 'APPROVE_EVENT', 'EVENT', ?, ?)`,
-            [req.user.id, id, approval_notes || 'Event approved']
-        );
+        // Audit log is automatically created by database trigger
 
         res.json({
             success: true,
@@ -296,12 +291,7 @@ router.put('/events/:id/reject', authenticate, authorizeAdmin, async (req, res) 
             [id]
         );
 
-        // Log the action
-        await pool.execute(
-            `INSERT INTO admin_audit_log (admin_id, action_type, target_type, target_id, description)
-             VALUES (?, 'REJECT_EVENT', 'EVENT', ?, ?)`,
-            [req.user.id, id, `Event rejected: ${rejection_reason}`]
-        );
+        // Audit log is automatically created by database trigger
 
         res.json({
             success: true,

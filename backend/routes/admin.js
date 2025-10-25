@@ -888,4 +888,380 @@ router.post('/populate-sample-data', async (req, res) => {
     }
 });
 
+// ============================================================================
+// TRIGGER DEMO: Get audit log showing trigger-generated entries
+// ============================================================================
+router.get('/audit-log', authenticate, authorizeAdmin, async (req, res) => {
+    try {
+        const [auditLogs] = await pool.execute(
+            `SELECT 
+                aal.id,
+                aal.admin_id,
+                aal.action_type,
+                aal.target_type,
+                aal.target_id,
+                aal.description,
+                aal.created_at,
+                e.name as event_name,
+                fa.name as admin_name
+            FROM admin_audit_log aal
+            LEFT JOIN events e ON aal.target_type = 'EVENT' AND aal.target_id = e.id
+            LEFT JOIN faculty_admin fa ON aal.admin_id = fa.id
+            WHERE aal.action_type IN ('APPROVE_EVENT', 'REJECT_EVENT')
+            ORDER BY aal.created_at DESC
+            LIMIT 50`
+        );
+
+        res.json({
+            success: true,
+            count: auditLogs.length,
+            auditLogs,
+            message: 'These entries were automatically created by the database trigger when event status changed'
+        });
+    } catch (error) {
+        console.error('Error fetching audit log:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to fetch audit log'
+        });
+    }
+});
+
+// ============================================================================
+// TRIGGER DEMO: Get registration activity log showing trigger-maintained counts
+// ============================================================================
+router.get('/registration-activity', authenticate, authorizeAdmin, async (req, res) => {
+    try {
+        const [activities] = await pool.execute(
+            `SELECT 
+                ral.id,
+                ral.event_id,
+                ral.student_id,
+                ral.action_type,
+                ral.old_count,
+                ral.new_count,
+                ral.capacity,
+                ral.activity_timestamp,
+                ral.trigger_name,
+                e.name as event_name,
+                e.current_registrations,
+                e.max_participants,
+                s.name as student_name,
+                s.student_id as student_roll
+            FROM registration_activity_log ral
+            LEFT JOIN events e ON ral.event_id = e.id
+            LEFT JOIN students s ON ral.student_id = s.id
+            ORDER BY ral.activity_timestamp DESC
+            LIMIT 100`
+        );
+
+        res.json({
+            success: true,
+            count: activities.length,
+            activities,
+            message: 'These counts were automatically updated by database triggers when students registered/cancelled'
+        });
+    } catch (error) {
+        console.error('Error fetching registration activity:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to fetch registration activity'
+        });
+    }
+});
+
+// Get event statistics with trigger-maintained counts
+router.get('/event-statistics', authenticate, authorizeAdmin, async (req, res) => {
+    try {
+        const [stats] = await pool.execute(
+            `SELECT 
+                e.id,
+                e.name,
+                e.event_date,
+                e.status,
+                e.max_participants,
+                e.current_registrations,
+                e.last_registration_update,
+                CASE 
+                    WHEN e.max_participants > 0 
+                    THEN ROUND((e.current_registrations / e.max_participants) * 100, 1)
+                    ELSE 0
+                END as fill_percentage,
+                CASE
+                    WHEN e.current_registrations >= e.max_participants THEN 'FULL'
+                    WHEN e.current_registrations >= e.max_participants * 0.8 THEN 'ALMOST_FULL'
+                    WHEN e.current_registrations >= e.max_participants * 0.5 THEN 'HALF_FULL'
+                    ELSE 'AVAILABLE'
+                END as capacity_status,
+                c.name as club_name
+            FROM events e
+            LEFT JOIN clubs c ON e.organized_by_club_id = c.id
+            WHERE e.status = 'Approved' 
+            AND e.event_date >= CURDATE()
+            AND e.max_participants > 0
+            ORDER BY e.event_date ASC, e.current_registrations DESC
+            LIMIT 50`
+        );
+
+        res.json({
+            success: true,
+            count: stats.length,
+            stats,
+            message: 'Registration counts are automatically maintained by database triggers'
+        });
+    } catch (error) {
+        console.error('Error fetching event statistics:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to fetch event statistics'
+        });
+    }
+});
+
+// Stored Procedure: Get Event Summary
+router.get('/procedure/event-summary/:eventId', authenticate, authorizeAdmin, async (req, res) => {
+    try {
+        const eventId = parseInt(req.params.eventId);
+        
+        if (isNaN(eventId)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid event ID'
+            });
+        }
+
+        const [results] = await pool.execute('CALL get_event_summary(?)', [eventId]);
+        
+        if (!results[0] || results[0].length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Event not found'
+            });
+        }
+
+        res.json({
+            success: true,
+            data: results[0][0],
+            message: 'Event summary fetched using stored procedure'
+        });
+    } catch (error) {
+        console.error('Error executing event summary procedure:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to fetch event summary'
+        });
+    }
+});
+
+// Nested Query: Get Highly Active Students (students with above-average event registrations)
+router.get('/nested-query/active-students', authenticate, authorizeAdmin, async (req, res) => {
+    try {
+        const [results] = await pool.execute(`
+            SELECT 
+                s.id,
+                s.student_id AS roll_number,
+                s.name,
+                s.email,
+                s.branch,
+                s.year_of_study,
+                COUNT(DISTINCT er.event_id) AS total_events_registered,
+                ROUND(
+                    (SELECT AVG(event_count) 
+                     FROM (
+                         SELECT COUNT(DISTINCT er2.event_id) AS event_count
+                         FROM students s2
+                         LEFT JOIN event_registrations er2 ON s2.id = er2.student_id 
+                             AND er2.registration_status IN ('Registered', 'Waitlisted')
+                         GROUP BY s2.id
+                     ) AS student_event_counts
+                    ), 1
+                ) AS average_events_per_student,
+                COUNT(DISTINCT CASE 
+                    WHEN er.attended = TRUE THEN er.event_id 
+                END) AS events_attended,
+                COUNT(DISTINCT cm.club_id) AS clubs_joined,
+                CASE 
+                    WHEN COUNT(DISTINCT er.event_id) >= 2 * (
+                        SELECT AVG(event_count) 
+                        FROM (
+                            SELECT COUNT(DISTINCT er3.event_id) AS event_count
+                            FROM students s3
+                            LEFT JOIN event_registrations er3 ON s3.id = er3.student_id 
+                                AND er3.registration_status IN ('Registered', 'Waitlisted')
+                            GROUP BY s3.id
+                        ) AS counts
+                    ) THEN 'Highly Active'
+                    WHEN COUNT(DISTINCT er.event_id) > (
+                        SELECT AVG(event_count) 
+                        FROM (
+                            SELECT COUNT(DISTINCT er4.event_id) AS event_count
+                            FROM students s4
+                            LEFT JOIN event_registrations er4 ON s4.id = er4.student_id 
+                                AND er4.registration_status IN ('Registered', 'Waitlisted')
+                            GROUP BY s4.id
+                        ) AS avg_counts
+                    ) THEN 'Active'
+                    ELSE 'Average'
+                END AS engagement_level
+            FROM students s
+            LEFT JOIN event_registrations er ON s.id = er.student_id 
+                AND er.registration_status IN ('Registered', 'Waitlisted')
+            LEFT JOIN club_memberships cm ON s.id = cm.student_id 
+                AND cm.is_active = TRUE
+            GROUP BY s.id, s.student_id, s.name, s.email, s.branch, s.year_of_study
+            HAVING COUNT(DISTINCT er.event_id) > (
+                SELECT AVG(event_count) 
+                FROM (
+                    SELECT COUNT(DISTINCT er5.event_id) AS event_count
+                    FROM students s5
+                    LEFT JOIN event_registrations er5 ON s5.id = er5.student_id 
+                        AND er5.registration_status IN ('Registered', 'Waitlisted')
+                    GROUP BY s5.id
+                ) AS final_avg
+            )
+            ORDER BY total_events_registered DESC, events_attended DESC
+        `);
+
+        res.json({
+            success: true,
+            count: results.length,
+            students: results,
+            message: 'Highly active students fetched using nested subquery (students with above-average event registrations)'
+        });
+    } catch (error) {
+        console.error('Error executing nested query:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to fetch active students'
+        });
+    }
+});
+
+// JOIN Query Demo: Get Complete Event Details with Multiple JOINs
+router.get('/join-query/event-details', authenticate, authorizeAdmin, async (req, res) => {
+    try {
+        const [events] = await pool.execute(`
+            SELECT 
+                e.id AS event_id,
+                e.name AS event_name,
+                e.description,
+                e.event_date,
+                e.start_time,
+                e.end_time,
+                e.event_type,
+                e.status,
+                e.max_participants,
+                e.registration_required,
+                e.registration_deadline,
+                c.id AS club_id,
+                c.name AS club_name,
+                c.description AS club_description,
+                v.id AS venue_id,
+                v.name AS venue_name,
+                v.type AS venue_type,
+                v.capacity AS venue_capacity,
+                v.equipment AS venue_equipment,
+                campus.id AS campus_id,
+                campus.name AS campus_name,
+                campus.location AS campus_location,
+                COUNT(DISTINCT er.id) AS total_registrations,
+                COUNT(DISTINCT CASE WHEN er.attended = TRUE THEN er.id END) AS attended_count,
+                vb.start_time AS booking_start,
+                vb.end_time AS booking_end,
+                vb.status AS booking_status
+            FROM events e
+            INNER JOIN clubs c ON e.organized_by_club_id = c.id
+            LEFT JOIN venue_bookings vb ON e.booking_id = vb.id
+            LEFT JOIN venues v ON vb.venue_id = v.id
+            LEFT JOIN campus ON v.campus_id = campus.id
+            LEFT JOIN event_registrations er ON e.id = er.event_id 
+                AND er.registration_status = 'Registered'
+            WHERE e.status = 'Approved' 
+                AND e.event_date >= CURDATE()
+            GROUP BY e.id, e.name, e.description, e.event_date, e.start_time, e.end_time, 
+                     e.event_type, e.status, e.max_participants, e.registration_required, 
+                     e.registration_deadline, c.id, c.name, c.description, v.id, v.name, 
+                     v.type, v.capacity, v.equipment, campus.id, campus.name, campus.location,
+                     vb.id, vb.start_time, vb.end_time, vb.status
+            ORDER BY e.event_date ASC, e.start_time ASC
+        `);
+
+        res.json({
+            success: true,
+            count: events.length,
+            events,
+            message: 'Event details fetched using multiple JOINs (5 tables: events, clubs, venues, campus, registrations)'
+        });
+    } catch (error) {
+        console.error('Error executing JOIN query:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to fetch event details'
+        });
+    }
+});
+
+// Aggregate Query Demo: Get Club Event Statistics with Multiple Aggregate Functions
+router.get('/aggregate-query/club-stats', authenticate, authorizeAdmin, async (req, res) => {
+    try {
+        const [clubStats] = await pool.execute(`
+            SELECT 
+                c.id AS club_id,
+                c.name AS club_name,
+                c.description AS club_description,
+                COUNT(DISTINCT e.id) AS total_events,
+                COUNT(DISTINCT CASE WHEN e.status = 'Approved' THEN e.id END) AS approved_events,
+                COUNT(DISTINCT CASE WHEN e.status = 'Completed' THEN e.id END) AS completed_events,
+                COUNT(DISTINCT CASE WHEN e.status = 'Pending_Approval' THEN e.id END) AS pending_events,
+                COUNT(DISTINCT er.id) AS total_registrations,
+                COALESCE(AVG(reg_count.registration_count), 0) AS avg_registrations_per_event,
+                COALESCE(MAX(reg_count.registration_count), 0) AS max_registrations_event,
+                COALESCE(MIN(CASE WHEN reg_count.registration_count > 0 THEN reg_count.registration_count END), 0) AS min_registrations_event,
+                COUNT(DISTINCT cm.student_id) AS total_members,
+                COUNT(DISTINCT CASE WHEN er.attended = TRUE THEN er.id END) AS total_attendees,
+                CASE 
+                    WHEN COUNT(DISTINCT e.id) > 0 
+                    THEN ROUND((COUNT(DISTINCT CASE WHEN e.status = 'Completed' THEN e.id END) * 100.0 / COUNT(DISTINCT e.id)), 2)
+                    ELSE 0 
+                END AS completion_rate_percentage,
+                CASE 
+                    WHEN COUNT(DISTINCT er.id) > 0 
+                    THEN ROUND((COUNT(DISTINCT CASE WHEN er.attended = TRUE THEN er.id END) * 100.0 / COUNT(DISTINCT er.id)), 2)
+                    ELSE 0 
+                END AS attendance_rate_percentage
+            FROM clubs c
+            LEFT JOIN events e ON c.id = e.organized_by_club_id
+            LEFT JOIN event_registrations er ON e.id = er.event_id 
+                AND er.registration_status = 'Registered'
+            LEFT JOIN club_memberships cm ON c.id = cm.club_id 
+                AND cm.is_active = TRUE
+            LEFT JOIN (
+                SELECT 
+                    event_id,
+                    COUNT(*) AS registration_count
+                FROM event_registrations
+                WHERE registration_status = 'Registered'
+                GROUP BY event_id
+            ) AS reg_count ON e.id = reg_count.event_id
+            WHERE c.is_active = TRUE
+            GROUP BY c.id, c.name, c.description
+            HAVING COUNT(DISTINCT e.id) > 0
+            ORDER BY total_events DESC, total_registrations DESC
+        `);
+
+        res.json({
+            success: true,
+            count: clubStats.length,
+            clubs: clubStats,
+            message: 'Club statistics using aggregate functions: COUNT, AVG, MAX, MIN, SUM with GROUP BY and HAVING'
+        });
+    } catch (error) {
+        console.error('Error executing aggregate query:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to fetch club statistics'
+        });
+    }
+});
+
 module.exports = router;

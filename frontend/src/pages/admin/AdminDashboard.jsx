@@ -8,8 +8,28 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState(null);
   const [pendingEvents, setPendingEvents] = useState([]);
   const [clubs, setClubs] = useState([]);
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [registrationActivity, setRegistrationActivity] = useState([]);
+  const [eventStats, setEventStats] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
+  
+  // Stored Procedure State
+  const [procedureEventId, setProcedureEventId] = useState('');
+  const [procedureResult, setProcedureResult] = useState(null);
+  const [procedureLoading, setProcedureLoading] = useState(false);
+  
+  // Nested Query State
+  const [activeStudents, setActiveStudents] = useState([]);
+  const [activeStudentsLoading, setActiveStudentsLoading] = useState(false);
+  
+  // JOIN Query State
+  const [joinQueryEvents, setJoinQueryEvents] = useState([]);
+  const [joinQueryLoading, setJoinQueryLoading] = useState(false);
+  
+  // Aggregate Query State
+  const [clubStatistics, setClubStatistics] = useState([]);
+  const [aggregateLoading, setAggregateLoading] = useState(false);
   
   // Create Club Modal State
   const [showCreateClubModal, setShowCreateClubModal] = useState(false);
@@ -95,6 +115,24 @@ export default function AdminDashboard() {
       const campusResponse = await apiService.getAvailableCampuses();
       if (campusResponse.success) {
         setAvailableCampuses(campusResponse.campuses || []);
+      }
+
+      // Fetch audit logs (trigger demo)
+      const auditResponse = await apiService.getAuditLogs();
+      if (auditResponse.success) {
+        setAuditLogs(auditResponse.auditLogs || []);
+      }
+
+      // Fetch registration activity (trigger demo)
+      const activityResponse = await apiService.getRegistrationActivity();
+      if (activityResponse.success) {
+        setRegistrationActivity(activityResponse.activities || []);
+      }
+
+      // Fetch event statistics (trigger demo)
+      const eventStatsResponse = await apiService.getEventStatistics();
+      if (eventStatsResponse.success) {
+        setEventStats(eventStatsResponse.stats || []);
       }
 
     } catch (error) {
@@ -333,6 +371,82 @@ export default function AdminDashboard() {
     }
   };
 
+  // Handle Stored Procedure Execution
+  const handleExecuteProcedure = async () => {
+    if (!procedureEventId) {
+      alert('Please enter an Event ID');
+      return;
+    }
+
+    setProcedureLoading(true);
+    try {
+      const result = await apiService.getEventSummary(procedureEventId);
+      if (result.success) {
+        setProcedureResult(result.data);
+      } else {
+        alert(result.error || 'Failed to fetch event summary');
+      }
+    } catch (error) {
+      console.error('Error executing procedure:', error);
+      alert('Error: ' + (error.response?.data?.error || error.message));
+    } finally {
+      setProcedureLoading(false);
+    }
+  };
+
+  // Handle Nested Query Execution
+  const handleFetchActiveStudents = async () => {
+    setActiveStudentsLoading(true);
+    try {
+      const result = await apiService.getActiveStudents();
+      if (result.success) {
+        setActiveStudents(result.students || []);
+      } else {
+        alert(result.error || 'Failed to fetch active students');
+      }
+    } catch (error) {
+      console.error('Error executing nested query:', error);
+      alert('Error: ' + (error.response?.data?.error || error.message));
+    } finally {
+      setActiveStudentsLoading(false);
+    }
+  };
+
+  // Handle JOIN Query Execution
+  const handleFetchJoinQueryEvents = async () => {
+    setJoinQueryLoading(true);
+    try {
+      const result = await apiService.getEventDetailsWithJoins();
+      if (result.success) {
+        setJoinQueryEvents(result.events || []);
+      } else {
+        alert(result.error || 'Failed to fetch event details');
+      }
+    } catch (error) {
+      console.error('Error executing JOIN query:', error);
+      alert('Error: ' + (error.response?.data?.error || error.message));
+    } finally {
+      setJoinQueryLoading(false);
+    }
+  };
+
+  const handleFetchClubStatistics = async () => {
+    setAggregateLoading(true);
+    try {
+      const result = await apiService.getClubStatistics();
+      if (result.success) {
+        setClubStatistics(result.clubs || []);
+      } else {
+        alert('Error: ' + result.error);
+      }
+    } catch (error) {
+      console.error('Error executing aggregate query:', error);
+      alert('Error: ' + (error.response?.data?.error || error.message));
+    } finally {
+      setAggregateLoading(false);
+    }
+  };
+
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
@@ -384,6 +498,48 @@ export default function AdminDashboard() {
             onClick={() => setActiveTab('clubs')}
           >
             Clubs Management
+          </button>
+          <button 
+            className={`nav-tab ${activeTab === 'audit' ? 'active' : ''}`}
+            onClick={() => setActiveTab('audit')}
+            style={{ background: activeTab === 'audit' ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'transparent' }}
+          >
+            🔧 Trigger Audit Log
+          </button>
+          <button 
+            className={`nav-tab ${activeTab === 'registrations' ? 'active' : ''}`}
+            onClick={() => setActiveTab('registrations')}
+            style={{ background: activeTab === 'registrations' ? 'linear-gradient(135deg, #48bb78 0%, #38a169 100%)' : 'transparent' }}
+          >
+            📊 Registration Stats
+          </button>
+          <button 
+            className={`nav-tab ${activeTab === 'procedure' ? 'active' : ''}`}
+            onClick={() => setActiveTab('procedure')}
+            style={{ background: activeTab === 'procedure' ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' : 'transparent' }}
+          >
+            🔬 Event Summary
+          </button>
+          <button 
+            className={`nav-tab ${activeTab === 'active-students' ? 'active' : ''}`}
+            onClick={() => setActiveTab('active-students')}
+            style={{ background: activeTab === 'active-students' ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : 'transparent' }}
+          >
+            🌟 Active Students
+          </button>
+          <button 
+            className={`nav-tab ${activeTab === 'join-query' ? 'active' : ''}`}
+            onClick={() => setActiveTab('join-query')}
+            style={{ background: activeTab === 'join-query' ? 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)' : 'transparent' }}
+          >
+            🔗 JOIN Query Demo
+          </button>
+          <button 
+            className={`nav-tab ${activeTab === 'aggregate' ? 'active' : ''}`}
+            onClick={() => setActiveTab('aggregate')}
+            style={{ background: activeTab === 'aggregate' ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' : 'transparent' }}
+          >
+            📊 Aggregate Functions
           </button>
         </div>
       </nav>
@@ -552,6 +708,1066 @@ export default function AdminDashboard() {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Trigger Audit Log Section */}
+        {activeTab === 'audit' && (
+          <div className="audit-section">
+            <div className="section-header">
+              <div>
+                <h2>🔧 Database Trigger Audit Log</h2>
+                <p className="section-subtitle">
+                  These entries are automatically created by the <code>after_event_status_update</code> trigger when you approve/reject events
+                </p>
+              </div>
+              <button onClick={fetchDashboardData} className="refresh-btn">
+                🔄 Refresh
+              </button>
+            </div>
+
+            {auditLogs.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-icon">📋</div>
+                <h3>No Audit Logs Yet</h3>
+                <p>Approve or reject an event to see the trigger in action!</p>
+                <p className="hint">The database trigger will automatically log the status change here.</p>
+              </div>
+            ) : (
+              <div className="audit-table-container">
+                <table className="audit-table">
+                  <thead>
+                    <tr>
+                      <th>Event Name</th>
+                      <th>Action</th>
+                      <th>Admin</th>
+                      <th>Description</th>
+                      <th>Timestamp</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {auditLogs.map((log) => (
+                      <tr key={log.id}>
+                        <td className="event-name-cell">{log.event_name || `Event #${log.target_id}`}</td>
+                        <td>
+                          <span className={`action-badge action-${log.action_type.toLowerCase().replace('_', '-')}`}>
+                            {log.action_type.replace('_', ' ')}
+                          </span>
+                        </td>
+                        <td className="admin-cell">
+                          {log.admin_name || `Admin #${log.admin_id}`}
+                        </td>
+                        <td className="description-cell">
+                          {log.description}
+                        </td>
+                        <td className="timestamp-cell">
+                          {new Date(log.created_at).toLocaleString()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Trigger Explanation */}
+            <div className="trigger-explanation">
+              <h3>How It Works</h3>
+              <div className="explanation-content">
+                <div className="step">
+                  <div className="step-number">1</div>
+                  <div className="step-text">
+                    <strong>You approve/reject an event</strong>
+                    <p>When you click approve or reject, the event status in the database changes</p>
+                  </div>
+                </div>
+                <div className="step">
+                  <div className="step-number">2</div>
+                  <div className="step-text">
+                    <strong>Trigger fires automatically</strong>
+                    <p>The <code>after_event_status_update</code> trigger detects the status change</p>
+                  </div>
+                </div>
+                <div className="step">
+                  <div className="step-number">3</div>
+                  <div className="step-text">
+                    <strong>Audit log created</strong>
+                    <p>The trigger inserts a new row in <code>admin_audit_log</code> table with action details</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'registrations' && (
+          <div className="registrations-section">
+            <div className="section-header">
+              <div>
+                <h2>📊 Event Registration Statistics</h2>
+                <p className="section-subtitle">
+                  Counts automatically updated by <code>after_registration_insert/update/delete</code> triggers
+                </p>
+              </div>
+              <button className="refresh-btn" onClick={fetchDashboardData}>
+                🔄 Refresh Data
+              </button>
+            </div>
+
+            {/* Event Statistics Table */}
+            <div className="stats-table-container">
+              <h3>Live Event Capacity Tracking</h3>
+              {eventStats.length === 0 ? (
+                <div className="empty-state">
+                  <div className="empty-icon">📅</div>
+                  <h3>No Upcoming Events</h3>
+                  <p>Create and approve some events to see registration statistics</p>
+                </div>
+              ) : (
+                <table className="stats-table">
+                  <thead>
+                    <tr>
+                      <th>Event Name</th>
+                      <th>Club</th>
+                      <th>Date</th>
+                      <th>Registrations</th>
+                      <th>Capacity</th>
+                      <th>Fill %</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {eventStats.map((event) => (
+                      <tr key={event.id}>
+                        <td className="event-name-cell">{event.name}</td>
+                        <td className="club-cell">{event.club_name}</td>
+                        <td className="date-cell">
+                          {new Date(event.event_date).toLocaleDateString()}
+                        </td>
+                        <td className="count-cell">
+                          <span className="count-badge">{event.current_registrations || 0}</span>
+                        </td>
+                        <td className="capacity-cell">{event.max_participants}</td>
+                        <td className="percentage-cell">
+                          <div className="progress-bar-container">
+                            <div 
+                              className={`progress-bar ${event.capacity_status.toLowerCase()}`}
+                              style={{ width: `${event.fill_percentage}%` }}
+                            ></div>
+                            <span className="percentage-text">{event.fill_percentage}%</span>
+                          </div>
+                        </td>
+                        <td>
+                          <span className={`capacity-badge ${event.capacity_status.toLowerCase()}`}>
+                            {event.capacity_status.replace('_', ' ')}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            {/* Registration Activity Log */}
+            <div className="activity-log-container">
+              <h3>Recent Registration Activity</h3>
+              {registrationActivity.length === 0 ? (
+                <div className="empty-state">
+                  <div className="empty-icon">👥</div>
+                  <h3>No Registration Activity Yet</h3>
+                  <p>Activity will appear here when students register or cancel</p>
+                </div>
+              ) : (
+                <table className="activity-table">
+                  <thead>
+                    <tr>
+                      <th>Student</th>
+                      <th>Event</th>
+                      <th>Action</th>
+                      <th>Count Change</th>
+                      <th>Timestamp</th>
+                      <th>Trigger</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {registrationActivity.slice(0, 20).map((activity) => (
+                      <tr key={activity.id}>
+                        <td className="student-cell">
+                          <div className="student-name">{activity.student_name}</div>
+                          <div className="student-roll">{activity.student_roll}</div>
+                        </td>
+                        <td className="event-cell">{activity.event_name}</td>
+                        <td>
+                          <span className={`action-badge action-${activity.action_type.toLowerCase()}`}>
+                            {activity.action_type}
+                          </span>
+                        </td>
+                        <td className="count-change-cell">
+                          <span className="count-display">
+                            {activity.old_count} → {activity.new_count}
+                            {activity.capacity && ` / ${activity.capacity}`}
+                          </span>
+                        </td>
+                        <td className="timestamp-cell">
+                          {new Date(activity.activity_timestamp).toLocaleString()}
+                        </td>
+                        <td className="trigger-cell">
+                          <code>{activity.trigger_name}</code>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            {/* Explanation Section */}
+            <div className="trigger-explanation">
+              <h3>How Registration Count Triggers Work</h3>
+              <div className="explanation-content">
+                <div className="step">
+                  <div className="step-number">1</div>
+                  <div className="step-text">
+                    <strong>Student registers/cancels</strong>
+                    <p>INSERT, UPDATE, or DELETE operation on <code>event_registrations</code> table</p>
+                  </div>
+                </div>
+                <div className="step">
+                  <div className="step-number">2</div>
+                  <div className="step-text">
+                    <strong>Trigger fires automatically</strong>
+                    <p><code>AFTER INSERT/UPDATE/DELETE</code> triggers detect the change</p>
+                  </div>
+                </div>
+                <div className="step">
+                  <div className="step-number">3</div>
+                  <div className="step-text">
+                    <strong>Count updated in real-time</strong>
+                    <p>Trigger updates <code>events.current_registrations</code> and logs to <code>registration_activity_log</code></p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Stored Procedure Section */}
+        {activeTab === 'procedure' && (
+          <div className="procedure-section">
+            <div className="section-header" style={{
+              background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+              color: 'white'
+            }}>
+              <div>
+                <h2>🔬 Event Summary Stored Procedure</h2>
+                <p className="section-subtitle">
+                  Get comprehensive event details using the <code>get_event_summary()</code> stored procedure
+                </p>
+              </div>
+              <button className="refresh-btn" onClick={() => {
+                setProcedureEventId('');
+                setProcedureResult(null);
+              }} style={{
+                background: 'rgba(255, 255, 255, 0.2)',
+                border: '1px solid rgba(255, 255, 255, 0.3)'
+              }}>
+                🔄 Clear
+              </button>
+            </div>
+
+            {/* Input Form */}
+            <div className="procedure-input-container">
+              <div className="input-group">
+                <label htmlFor="procedureEventId">
+                  <strong>Enter Event ID:</strong>
+                  <span className="input-hint">Get details for any event in the system</span>
+                </label>
+                <div className="input-with-button">
+                  <input
+                    type="number"
+                    id="procedureEventId"
+                    value={procedureEventId}
+                    onChange={(e) => setProcedureEventId(e.target.value)}
+                    placeholder="e.g., 1"
+                    className="procedure-input"
+                    disabled={procedureLoading}
+                  />
+                  <button
+                    onClick={handleExecuteProcedure}
+                    disabled={procedureLoading || !procedureEventId}
+                    className="execute-btn"
+                  >
+                    {procedureLoading ? '⏳ Loading...' : '▶️ Execute Procedure'}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Results Display */}
+            {procedureResult && (
+              <div className="procedure-results">
+                <h3>📋 Procedure Results</h3>
+                <div className="results-grid">
+                  {/* Event Information Card */}
+                  <div className="result-card">
+                    <div className="card-header">
+                      <h4>📅 Event Information</h4>
+                    </div>
+                    <div className="card-body">
+                      <div className="result-row">
+                        <span className="result-label">Event ID:</span>
+                        <span className="result-value">{procedureResult.id}</span>
+                      </div>
+                      <div className="result-row">
+                        <span className="result-label">Event Name:</span>
+                        <span className="result-value">{procedureResult.name}</span>
+                      </div>
+                      <div className="result-row">
+                        <span className="result-label">Description:</span>
+                        <span className="result-value">{procedureResult.description || 'N/A'}</span>
+                      </div>
+                      <div className="result-row">
+                        <span className="result-label">Date:</span>
+                        <span className="result-value">
+                          {new Date(procedureResult.event_date).toLocaleDateString('en-US', {
+                            weekday: 'long',
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                          })}
+                        </span>
+                      </div>
+                      <div className="result-row">
+                        <span className="result-label">Time:</span>
+                        <span className="result-value">
+                          {procedureResult.start_time || 'N/A'} - {procedureResult.end_time || 'N/A'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Organizer & Venue Card */}
+                  <div className="result-card">
+                    <div className="card-header">
+                      <h4>🏛️ Organizer & Venue</h4>
+                    </div>
+                    <div className="card-body">
+                      <div className="result-row">
+                        <span className="result-label">Organizing Club:</span>
+                        <span className="result-value highlight-orange">
+                          {procedureResult.club_name || 'No Club Assigned'}
+                        </span>
+                      </div>
+                      <div className="result-row">
+                        <span className="result-label">Venue:</span>
+                        <span className="result-value">{procedureResult.venue_name || 'Not Booked'}</span>
+                      </div>
+                      <div className="result-row">
+                        <span className="result-label">Venue Capacity:</span>
+                        <span className="result-value">{procedureResult.capacity || 'N/A'}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Registration Statistics Card */}
+                  <div className="result-card">
+                    <div className="card-header">
+                      <h4>👥 Registration Statistics</h4>
+                    </div>
+                    <div className="card-body">
+                      <div className="result-row">
+                        <span className="result-label">Total Registrations:</span>
+                        <span className="result-value stat-highlight">
+                          {procedureResult.total_registrations || 0}
+                        </span>
+                      </div>
+                      <div className="result-row">
+                        <span className="result-label">Seats Available:</span>
+                        <span className="result-value">
+                          {procedureResult.seats_available !== null ? procedureResult.seats_available : 'N/A'}
+                        </span>
+                      </div>
+                      <div className="result-row">
+                        <span className="result-label">Fill Percentage:</span>
+                        <span className="result-value">
+                          <div className="progress-bar-container">
+                            <div
+                              className={`progress-bar ${
+                                procedureResult.fill_percentage >= 90 ? 'full' :
+                                procedureResult.fill_percentage >= 70 ? 'high' :
+                                procedureResult.fill_percentage >= 40 ? 'medium' : 'low'
+                              }`}
+                              style={{ width: `${procedureResult.fill_percentage || 0}%` }}
+                            ></div>
+                            <span className="percentage-text">
+                              {procedureResult.fill_percentage !== null ? `${procedureResult.fill_percentage}%` : 'N/A'}
+                            </span>
+                          </div>
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Procedure Info Box */}
+                <div className="procedure-info-box">
+                  <h4>ℹ️ About This Stored Procedure</h4>
+                  <p>
+                    The <code>get_event_summary(p_event_id INT)</code> stored procedure retrieves comprehensive
+                    information about an event by performing the following operations:
+                  </p>
+                  <ul>
+                    <li>Joins <code>events</code> table with <code>clubs</code> to get organizer information</li>
+                    <li>Joins with <code>venue_bookings</code> and <code>venues</code> to get venue details</li>
+                    <li>Counts registrations from <code>event_registrations</code> table</li>
+                    <li>Calculates available seats and fill percentage automatically</li>
+                  </ul>
+                  <p className="procedure-note">
+                    <strong>Note:</strong> This is a READ-ONLY procedure that doesn't modify any data.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Empty State */}
+            {!procedureResult && !procedureLoading && (
+              <div className="empty-state">
+                <div className="empty-icon">🔍</div>
+                <h3>Enter an Event ID to Execute Procedure</h3>
+                <p>The stored procedure will retrieve comprehensive event details including venue, club, and registration statistics</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Nested Query Section - Active Students */}
+        {activeTab === 'active-students' && (
+          <div className="nested-query-section">
+            <div className="section-header" style={{
+              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+              color: 'white'
+            }}>
+              <div>
+                <h2>🌟 Highly Active Students (Nested Query)</h2>
+                <p className="section-subtitle">
+                  Find students with above-average event participation using nested subqueries
+                </p>
+              </div>
+              <button 
+                className="refresh-btn" 
+                onClick={handleFetchActiveStudents}
+                disabled={activeStudentsLoading}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  border: '1px solid rgba(255, 255, 255, 0.3)'
+                }}
+              >
+                {activeStudentsLoading ? '⏳ Loading...' : '🔄 Execute Query'}
+              </button>
+            </div>
+
+            {/* Results Display */}
+            {activeStudents.length > 0 && (
+              <div className="nested-query-results">
+                <div className="query-explanation-box">
+                  <h4>📊 Query Logic</h4>
+                  <p>This query uses <strong>multiple nested subqueries</strong> to:</p>
+                  <ul>
+                    <li>Calculate the <strong>average</strong> number of events per student (subquery)</li>
+                    <li>Compare each student's registrations <strong>against the average</strong> (HAVING clause with subquery)</li>
+                    <li>Categorize students as "Highly Active", "Active", or "Average" (CASE with nested subqueries)</li>
+                    <li>Filter only students who exceed the average (nested subquery in HAVING)</li>
+                  </ul>
+                </div>
+
+                <div className="stats-summary">
+                  <div className="summary-card">
+                    <div className="summary-icon">👥</div>
+                    <div className="summary-content">
+                      <h3>{activeStudents.length}</h3>
+                      <p>Highly Active Students</p>
+                      <span className="summary-badge success">Above Average</span>
+                    </div>
+                  </div>
+                  <div className="summary-card">
+                    <div className="summary-icon">📈</div>
+                    <div className="summary-content">
+                      <h3>{activeStudents[0]?.average_events_per_student || 0}</h3>
+                      <p>Average Events/Student</p>
+                      <span className="summary-badge info">Baseline</span>
+                    </div>
+                  </div>
+                  <div className="summary-card">
+                    <div className="summary-icon">🏆</div>
+                    <div className="summary-content">
+                      <h3>{activeStudents.filter(s => s.engagement_level === 'Highly Active').length}</h3>
+                      <p>Highly Engaged</p>
+                      <span className="summary-badge highly-active">Top Performers</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="students-table-container">
+                  <h3>🎓 Student Details</h3>
+                  <table className="students-table">
+                    <thead>
+                      <tr>
+                        <th>Roll Number</th>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Branch</th>
+                        <th>Year</th>
+                        <th>Events Registered</th>
+                        <th>Events Attended</th>
+                        <th>Clubs Joined</th>
+                        <th>Engagement Level</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {activeStudents.map((student) => (
+                        <tr key={student.id}>
+                          <td className="roll-cell">{student.roll_number}</td>
+                          <td className="name-cell">{student.name}</td>
+                          <td className="email-cell">{student.email}</td>
+                          <td>{student.branch || 'N/A'}</td>
+                          <td className="year-cell">{student.year_of_study || 'N/A'}</td>
+                          <td className="count-cell">
+                            <span className="count-badge primary">{student.total_events_registered}</span>
+                          </td>
+                          <td className="count-cell">
+                            <span className="count-badge success">{student.events_attended}</span>
+                          </td>
+                          <td className="count-cell">
+                            <span className="count-badge info">{student.clubs_joined}</span>
+                          </td>
+                          <td>
+                            <span className={`engagement-badge ${student.engagement_level.toLowerCase().replace(' ', '-')}`}>
+                              {student.engagement_level}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* SQL Query Display */}
+                <div className="sql-display-box">
+                  <h4>💻 Nested Query Structure</h4>
+                  <pre className="sql-code">
+{`SELECT s.name, COUNT(DISTINCT er.event_id) AS total_events
+FROM students s
+LEFT JOIN event_registrations er ON s.id = er.student_id
+GROUP BY s.id
+HAVING COUNT(DISTINCT er.event_id) > (
+    -- Nested Subquery: Calculate Average
+    SELECT AVG(event_count) FROM (
+        SELECT COUNT(DISTINCT er2.event_id) AS event_count
+        FROM students s2
+        LEFT JOIN event_registrations er2 ON s2.id = er2.student_id
+        GROUP BY s2.id
+    ) AS student_event_counts
+)
+ORDER BY total_events DESC;`}
+                  </pre>
+                  <p className="sql-note">
+                    <strong>Note:</strong> The actual query uses multiple nested subqueries in SELECT, CASE, and HAVING clauses
+                    to calculate averages and categorize students dynamically.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Empty State */}
+            {activeStudents.length === 0 && !activeStudentsLoading && (
+              <div className="empty-state">
+                <div className="empty-icon">🔍</div>
+                <h3>Click "Execute Query" to Find Active Students</h3>
+                <p>This nested query will identify students who have registered for more events than the average student</p>
+                <div className="empty-hint">
+                  <strong>Use Case:</strong> Perfect for identifying engaged students for leadership roles, awards, or scholarships
+                </div>
+              </div>
+            )}
+
+            {activeStudentsLoading && (
+              <div className="loading-state">
+                <div className="spinner"></div>
+                <p>Executing nested query...</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* JOIN Query Section - Event Details */}
+        {activeTab === 'join-query' && (
+          <div className="join-query-section">
+            <div className="section-header" style={{
+              background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
+              color: 'white'
+            }}>
+              <div>
+                <h2>🔗 Multiple JOIN Query Demonstration</h2>
+                <p className="section-subtitle">
+                  Fetch complete event details using INNER and LEFT JOINs across 5 tables
+                </p>
+              </div>
+              <button 
+                className="refresh-btn" 
+                onClick={handleFetchJoinQueryEvents}
+                disabled={joinQueryLoading}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  border: '1px solid rgba(255, 255, 255, 0.3)'
+                }}
+              >
+                {joinQueryLoading ? '⏳ Loading...' : '▶️ Execute JOIN Query'}
+              </button>
+            </div>
+
+            {/* JOIN Explanation */}
+            <div className="join-explanation-box">
+              <h4>🔗 JOIN Query Structure</h4>
+              <p>This query demonstrates <strong>multiple JOIN operations</strong> combining data from 5 tables:</p>
+              <div className="join-diagram">
+                <div className="join-step">
+                  <div className="table-badge main">events</div>
+                  <div className="join-arrow">INNER JOIN →</div>
+                  <div className="table-badge">clubs</div>
+                  <p className="join-description">Every event must have an organizing club</p>
+                </div>
+                <div className="join-step">
+                  <div className="table-badge main">events</div>
+                  <div className="join-arrow">LEFT JOIN →</div>
+                  <div className="table-badge">venue_bookings</div>
+                  <p className="join-description">Events may or may not have venue bookings</p>
+                </div>
+                <div className="join-step">
+                  <div className="table-badge">venue_bookings</div>
+                  <div className="join-arrow">LEFT JOIN →</div>
+                  <div className="table-badge">venues</div>
+                  <p className="join-description">Bookings reference specific venues</p>
+                </div>
+                <div className="join-step">
+                  <div className="table-badge">venues</div>
+                  <div className="join-arrow">LEFT JOIN →</div>
+                  <div className="table-badge">campus</div>
+                  <p className="join-description">Venues belong to a campus</p>
+                </div>
+                <div className="join-step">
+                  <div className="table-badge main">events</div>
+                  <div className="join-arrow">LEFT JOIN →</div>
+                  <div className="table-badge">event_registrations</div>
+                  <p className="join-description">Count student registrations (with aggregation)</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Results Display */}
+            {joinQueryEvents.length > 0 && (
+              <div className="join-results">
+                <div className="results-summary">
+                  <div className="summary-stat">
+                    <div className="stat-icon">📅</div>
+                    <div className="stat-text">
+                      <h3>{joinQueryEvents.length}</h3>
+                      <p>Upcoming Events</p>
+                    </div>
+                  </div>
+                  <div className="summary-stat">
+                    <div className="stat-icon">🔗</div>
+                    <div className="stat-text">
+                      <h3>5</h3>
+                      <p>Tables Joined</p>
+                    </div>
+                  </div>
+                  <div className="summary-stat">
+                    <div className="stat-icon">📊</div>
+                    <div className="stat-text">
+                      <h3>{joinQueryEvents.reduce((sum, e) => sum + (e.total_registrations || 0), 0)}</h3>
+                      <p>Total Registrations</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="events-cards-grid">
+                  {joinQueryEvents.map((event) => (
+                    <div key={event.event_id} className="event-detail-card">
+                      <div className="card-header-purple">
+                        <h3>{event.event_name}</h3>
+                        <span className="event-type-badge">{event.event_type}</span>
+                      </div>
+                      
+                      <div className="card-body">
+                        {/* Event Details */}
+                        <div className="detail-section">
+                          <h4>📅 Event Information</h4>
+                          <div className="detail-grid">
+                            <div className="detail-item">
+                              <span className="label">Date:</span>
+                              <span className="value">{new Date(event.event_date).toLocaleDateString()}</span>
+                            </div>
+                            <div className="detail-item">
+                              <span className="label">Time:</span>
+                              <span className="value">{event.start_time} - {event.end_time}</span>
+                            </div>
+                            <div className="detail-item">
+                              <span className="label">Status:</span>
+                              <span className={`status-badge ${event.status.toLowerCase()}`}>{event.status}</span>
+                            </div>
+                            <div className="detail-item">
+                              <span className="label">Max Participants:</span>
+                              <span className="value">{event.max_participants || 'Unlimited'}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Club Details (INNER JOIN) */}
+                        <div className="detail-section">
+                          <h4>🏛️ Club (INNER JOIN)</h4>
+                          <div className="detail-grid">
+                            <div className="detail-item">
+                              <span className="label">Club Name:</span>
+                              <span className="value highlight-purple">{event.club_name}</span>
+                            </div>
+                            <div className="detail-item full-width">
+                              <span className="label">Description:</span>
+                              <span className="value">{event.club_description || 'N/A'}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Venue & Campus Details (LEFT JOINs) */}
+                        <div className="detail-section">
+                          <h4>📍 Venue & Campus (LEFT JOINs)</h4>
+                          <div className="detail-grid">
+                            <div className="detail-item">
+                              <span className="label">Venue:</span>
+                              <span className="value">{event.venue_name || 'Not Booked'}</span>
+                            </div>
+                            <div className="detail-item">
+                              <span className="label">Type:</span>
+                              <span className="value">{event.venue_type || 'N/A'}</span>
+                            </div>
+                            <div className="detail-item">
+                              <span className="label">Capacity:</span>
+                              <span className="value">{event.venue_capacity || 'N/A'}</span>
+                            </div>
+                            <div className="detail-item">
+                              <span className="label">Campus:</span>
+                              <span className="value">{event.campus_name || 'N/A'}</span>
+                            </div>
+                            {event.venue_equipment && (
+                              <div className="detail-item full-width">
+                                <span className="label">Equipment:</span>
+                                <span className="value">{event.venue_equipment}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Registration Stats (LEFT JOIN with COUNT) */}
+                        <div className="detail-section">
+                          <h4>👥 Registrations (LEFT JOIN + Aggregation)</h4>
+                          <div className="stats-bar">
+                            <div className="stat-box">
+                              <div className="stat-number">{event.total_registrations || 0}</div>
+                              <div className="stat-label">Registered</div>
+                            </div>
+                            <div className="stat-box">
+                              <div className="stat-number">{event.attended_count || 0}</div>
+                              <div className="stat-label">Attended</div>
+                            </div>
+                            {event.max_participants && (
+                              <div className="stat-box">
+                                <div className="stat-number">
+                                  {Math.round((event.total_registrations / event.max_participants) * 100)}%
+                                </div>
+                                <div className="stat-label">Fill Rate</div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* SQL Query Display */}
+                <div className="sql-display-box">
+                  <h4>💻 JOIN Query SQL</h4>
+                  <pre className="sql-code">
+{`SELECT 
+    e.*, 
+    c.name AS club_name,
+    v.name AS venue_name,
+    campus.name AS campus_name,
+    COUNT(er.id) AS total_registrations
+FROM events e
+INNER JOIN clubs c 
+    ON e.organized_by_club_id = c.id
+LEFT JOIN venue_bookings vb 
+    ON e.booking_id = vb.id
+LEFT JOIN venues v 
+    ON vb.venue_id = v.id
+LEFT JOIN campus 
+    ON v.campus_id = campus.id
+LEFT JOIN event_registrations er 
+    ON e.id = er.event_id
+WHERE e.status = 'Approved'
+GROUP BY e.id, c.id, v.id, campus.id;`}
+                  </pre>
+                </div>
+              </div>
+            )}
+
+            {/* Empty State */}
+            {joinQueryEvents.length === 0 && !joinQueryLoading && (
+              <div className="empty-state">
+                <div className="empty-icon">🔗</div>
+                <h3>Click "Execute JOIN Query" to See Results</h3>
+                <p>This query will fetch complete event details by joining data from 5 different tables</p>
+                <div className="empty-hint" style={{ background: 'linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%)' }}>
+                  <strong>Tables Joined:</strong> events → clubs → venue_bookings → venues → campus + event_registrations
+                </div>
+              </div>
+            )}
+
+            {joinQueryLoading && (
+              <div className="loading-state">
+                <div className="spinner"></div>
+                <p>Executing JOIN query across 5 tables...</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Aggregate Query Section - Club Statistics */}
+        {activeTab === 'aggregate' && (
+          <div className="aggregate-query-section">
+            <div className="section-header" style={{
+              background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+              color: 'white'
+            }}>
+              <div>
+                <h2>📊 Aggregate Functions Demonstration</h2>
+                <p className="section-subtitle">
+                  Comprehensive club statistics using COUNT, AVG, MAX, MIN with GROUP BY and HAVING
+                </p>
+              </div>
+              <button 
+                className="refresh-btn" 
+                onClick={handleFetchClubStatistics}
+                disabled={aggregateLoading}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  border: '1px solid rgba(255, 255, 255, 0.3)'
+                }}
+              >
+                {aggregateLoading ? '⏳ Loading...' : '▶️ Execute Aggregate Query'}
+              </button>
+            </div>
+
+            {/* Aggregate Functions Explanation */}
+            <div className="aggregate-explanation-box">
+              <h4>📊 Aggregate Functions Used</h4>
+              <p>This query demonstrates <strong>multiple aggregate functions</strong> with GROUP BY and HAVING clauses:</p>
+              <div className="aggregate-functions-grid">
+                <div className="function-card">
+                  <div className="function-icon">🔢</div>
+                  <h5>COUNT()</h5>
+                  <p>Total events, registrations, members per club</p>
+                </div>
+                <div className="function-card">
+                  <div className="function-icon">📈</div>
+                  <h5>AVG()</h5>
+                  <p>Average registrations per event</p>
+                </div>
+                <div className="function-card">
+                  <div className="function-icon">⬆️</div>
+                  <h5>MAX()</h5>
+                  <p>Maximum registrations for any event</p>
+                </div>
+                <div className="function-card">
+                  <div className="function-icon">⬇️</div>
+                  <h5>MIN()</h5>
+                  <p>Minimum registrations for events</p>
+                </div>
+                <div className="function-card">
+                  <div className="function-icon">🎯</div>
+                  <h5>GROUP BY</h5>
+                  <p>Groups results by club</p>
+                </div>
+                <div className="function-card">
+                  <div className="function-icon">🔍</div>
+                  <h5>HAVING</h5>
+                  <p>Filters clubs with events {'>'} 0</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Results Display */}
+            {clubStatistics.length > 0 && (
+              <div className="aggregate-results">
+                <div className="results-header">
+                  <h3>📊 Club Performance Statistics</h3>
+                  <p>Showing {clubStatistics.length} active clubs with event data</p>
+                </div>
+
+                <div className="clubs-stats-grid">
+                  {clubStatistics.map((club) => (
+                    <div key={club.club_id} className="club-stats-card">
+                      <div className="card-header-amber">
+                        <div>
+                          <h3>{club.club_name}</h3>
+                          <span className="club-category-badge">Active Club</span>
+                        </div>
+                        <div className="club-id">ID: {club.club_id}</div>
+                      </div>
+                      
+                      <div className="stats-body">
+                        {/* Event Statistics */}
+                        <div className="stats-section">
+                          <h4>📅 Event Statistics (COUNT)</h4>
+                          <div className="stats-row">
+                            <div className="stat-item">
+                              <span className="stat-label">Total Events:</span>
+                              <span className="stat-value highlight">{club.total_events}</span>
+                            </div>
+                            <div className="stat-item">
+                              <span className="stat-label">Approved:</span>
+                              <span className="stat-value success">{club.approved_events}</span>
+                            </div>
+                            <div className="stat-item">
+                              <span className="stat-label">Completed:</span>
+                              <span className="stat-value">{club.completed_events}</span>
+                            </div>
+                            <div className="stat-item">
+                              <span className="stat-label">Pending:</span>
+                              <span className="stat-value warning">{club.pending_events}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Registration Statistics */}
+                        <div className="stats-section">
+                          <h4>👥 Registration Analytics</h4>
+                          <div className="stats-grid-2col">
+                            <div className="metric-box">
+                              <div className="metric-label">Total Registrations (COUNT)</div>
+                              <div className="metric-value">{club.total_registrations}</div>
+                            </div>
+                            <div className="metric-box">
+                              <div className="metric-label">Average per Event (AVG)</div>
+                              <div className="metric-value">{parseFloat(club.avg_registrations_per_event).toFixed(2)}</div>
+                            </div>
+                            <div className="metric-box">
+                              <div className="metric-label">Highest Turnout (MAX)</div>
+                              <div className="metric-value highlight">{club.max_registrations_event}</div>
+                            </div>
+                            <div className="metric-box">
+                              <div className="metric-label">Lowest Turnout (MIN)</div>
+                              <div className="metric-value">{club.min_registrations_event}</div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Member & Attendance */}
+                        <div className="stats-section">
+                          <h4>🎯 Participation Metrics</h4>
+                          <div className="participation-grid">
+                            <div className="participation-item">
+                              <div className="participation-number">{club.total_members}</div>
+                              <div className="participation-label">Club Members</div>
+                            </div>
+                            <div className="participation-item">
+                              <div className="participation-number">{club.total_attendees}</div>
+                              <div className="participation-label">Total Attendees</div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Percentage Metrics */}
+                        <div className="stats-section">
+                          <h4>📈 Performance Rates (Calculated)</h4>
+                          <div className="progress-bars">
+                            <div className="progress-item">
+                              <div className="progress-label">
+                                <span>Completion Rate</span>
+                                <span className="progress-percentage">{club.completion_rate_percentage}%</span>
+                              </div>
+                              <div className="progress-bar-container">
+                                <div 
+                                  className="progress-bar-fill completion" 
+                                  style={{ width: `${club.completion_rate_percentage}%` }}
+                                ></div>
+                              </div>
+                            </div>
+                            <div className="progress-item">
+                              <div className="progress-label">
+                                <span>Attendance Rate</span>
+                                <span className="progress-percentage">{club.attendance_rate_percentage}%</span>
+                              </div>
+                              <div className="progress-bar-container">
+                                <div 
+                                  className="progress-bar-fill attendance" 
+                                  style={{ width: `${club.attendance_rate_percentage}%` }}
+                                ></div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* SQL Query Display */}
+                <div className="sql-display-box aggregate">
+                  <h4>💻 Aggregate Query SQL</h4>
+                  <pre className="sql-code">
+{`SELECT 
+    c.id, c.name, c.category,
+    COUNT(DISTINCT e.id) AS total_events,
+    COUNT(DISTINCT CASE WHEN e.status = 'Completed' THEN e.id END) AS completed_events,
+    COUNT(DISTINCT er.id) AS total_registrations,
+    AVG(registration_count) AS avg_registrations_per_event,
+    MAX(registration_count) AS max_registrations_event,
+    MIN(registration_count) AS min_registrations_event,
+    COUNT(DISTINCT cm.student_id) AS total_members,
+    ROUND((completed_events * 100.0 / total_events), 2) AS completion_rate,
+    ROUND((attendees * 100.0 / registrations), 2) AS attendance_rate
+FROM clubs c
+LEFT JOIN events e ON c.id = e.organized_by_club_id
+LEFT JOIN event_registrations er ON e.id = er.event_id
+LEFT JOIN club_members cm ON c.id = cm.club_id
+GROUP BY c.id, c.name, c.category
+HAVING COUNT(DISTINCT e.id) > 0
+ORDER BY total_events DESC;`}
+                  </pre>
+                </div>
+              </div>
+            )}
+
+            {/* Empty State */}
+            {clubStatistics.length === 0 && !aggregateLoading && (
+              <div className="empty-state">
+                <div className="empty-icon">📊</div>
+                <h3>Click "Execute Aggregate Query" to See Results</h3>
+                <p>This query will calculate comprehensive statistics for all clubs using multiple aggregate functions</p>
+                <div className="empty-hint" style={{ background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)' }}>
+                  <strong>Functions Used:</strong> COUNT(), AVG(), MAX(), MIN() with GROUP BY and HAVING clauses
+                </div>
+              </div>
+            )}
+
+            {aggregateLoading && (
+              <div className="loading-state">
+                <div className="spinner"></div>
+                <p>Calculating aggregate statistics across all clubs...</p>
+              </div>
+            )}
           </div>
         )}
       </main>
