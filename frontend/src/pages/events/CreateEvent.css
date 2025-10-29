@@ -153,6 +153,23 @@
   cursor: not-allowed;
 }
 
+/* Disabled Input Styles */
+.disabled-input {
+  background-color: #f7fafc !important;
+  color: #4a5568 !important;
+  cursor: not-allowed !important;
+  border-color: #e2e8f0 !important;
+  font-weight: 600;
+}
+
+.form-hint {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.875rem;
+  color: #718096;
+  font-style: italic;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .create-event-container {

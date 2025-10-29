@@ -15,6 +15,7 @@ router.get('/clubs', async (req, res) => {
                 fa.name as faculty_coordinator,
                 c.is_active,
                 COUNT(DISTINCT cm.id) as member_count,
+                s.id as club_head_id,
                 s.name as head_name,
                 s.email as head_email
             FROM clubs c
@@ -23,7 +24,7 @@ router.get('/clubs', async (req, res) => {
             LEFT JOIN club_memberships head_cm ON c.id = head_cm.club_id AND head_cm.role = 'Head' AND head_cm.is_active = TRUE
             LEFT JOIN students s ON head_cm.student_id = s.id
             WHERE c.is_active = TRUE
-            GROUP BY c.id, fa.name, s.name, s.email
+            GROUP BY c.id, fa.name, s.id, s.name, s.email
             ORDER BY c.name ASC`
         );
         
@@ -55,6 +56,7 @@ router.get('/clubs/:id', async (req, res) => {
                 fa.name as faculty_coordinator,
                 c.is_active,
                 COUNT(DISTINCT cm.id) as member_count,
+                s.id as club_head_id,
                 s.name as head_name,
                 s.email as head_email
             FROM clubs c
@@ -63,7 +65,7 @@ router.get('/clubs/:id', async (req, res) => {
             LEFT JOIN club_memberships head_cm ON c.id = head_cm.club_id AND head_cm.role = 'Head' AND head_cm.is_active = TRUE
             LEFT JOIN students s ON head_cm.student_id = s.id
             WHERE c.id = ?
-            GROUP BY c.id, fa.name, s.name, s.email`,
+            GROUP BY c.id, fa.name, s.id, s.name, s.email`,
             [id]
         );
         

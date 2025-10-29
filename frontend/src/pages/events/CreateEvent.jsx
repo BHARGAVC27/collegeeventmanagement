@@ -8,7 +8,7 @@ export default function CreateEvent() {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const [venues, setVenues] = useState([])
-  const [clubs, setClubs] = useState([])
+  const [userClub, setUserClub] = useState(null)
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -17,7 +17,6 @@ export default function CreateEvent() {
     end_time: '',
     event_type: 'Workshop',
     max_participants: '',
-    registration_required: true,
     registration_deadline: '',
     club_id: '',
     venue_id: ''
@@ -49,16 +48,42 @@ export default function CreateEvent() {
 
   const fetchInitialData = async () => {
     try {
+      const user = JSON.parse(localStorage.getItem('user') || '{}')
+      console.log('Current user:', user)
+      
       // Fetch venues
       const venuesResponse = await apiService.getVenues()
       if (venuesResponse.success) {
         setVenues(venuesResponse.venues || [])
       }
 
-      // Fetch clubs (user's clubs)
+      // Fetch user's clubs to find which club they are head of
       const clubsResponse = await apiService.getClubs()
+      console.log('Clubs response:', clubsResponse)
+      
       if (clubsResponse.success) {
-        setClubs(clubsResponse.clubs || [])
+        const clubs = clubsResponse.clubs || []
+        console.log('All clubs:', clubs)
+        
+        // Find the club where current user is the head
+        const myClub = clubs.find(club => {
+          console.log(`Checking club ${club.name}: club_head_id=${club.club_head_id}, user.id=${user.id}`)
+          return club.club_head_id === user.id || club.club_head_email === user.email
+        })
+        
+        console.log('My club:', myClub)
+        
+        if (myClub) {
+          setUserClub(myClub)
+          // Automatically set the club_id in form
+          setFormData(prev => ({
+            ...prev,
+            club_id: myClub.id.toString()
+          }))
+        } else {
+          alert('You are not assigned as head of any club. Please contact admin.')
+          navigate('/dashboard')
+        }
       }
     } catch (error) {
       console.error('Error fetching initial data:', error)
@@ -74,11 +99,17 @@ export default function CreateEvent() {
   }
 
   const validateForm = () => {
-    const required = ['name', 'description', 'event_date', 'start_time', 'end_time', 'club_id']
+    const required = ['name', 'description', 'event_date', 'start_time', 'end_time', 'club_id', 'max_participants']
     const missing = required.filter(field => !formData[field])
     
     if (missing.length > 0) {
       alert(`Please fill in all required fields: ${missing.join(', ')}`)
+      return false
+    }
+
+    // Validate max_participants is a positive number
+    if (parseInt(formData.max_participants) <= 0) {
+      alert('Max participants must be greater than 0')
       return false
     }
 
@@ -118,7 +149,13 @@ export default function CreateEvent() {
     setLoading(true)
     
     try {
-      const response = await apiService.createEvent(formData)
+      // Add registration_required as true since it's always required now
+      const eventData = {
+        ...formData,
+        registration_required: true
+      }
+      
+      const response = await apiService.createEvent(eventData)
       
       if (response.success) {
         alert('Event created successfully! It has been sent for admin approval.')
@@ -192,18 +229,15 @@ export default function CreateEvent() {
 
               <div className="form-group">
                 <label htmlFor="club_id">Organizing Club *</label>
-                <select
+                <input
+                  type="text"
                   id="club_id"
-                  name="club_id"
-                  value={formData.club_id}
-                  onChange={handleInputChange}
-                  required
-                >
-                  <option value="">Select Club</option>
-                  {clubs.map(club => (
-                    <option key={club.id} value={club.id}>{club.name}</option>
-                  ))}
-                </select>
+                  value={userClub ? userClub.name : 'Loading...'}
+                  disabled
+                  className="disabled-input"
+                  title="Club is automatically selected based on your club head role"
+                />
+                <small className="form-hint">Automatically selected based on your club head role</small>
               </div>
             </div>
           </div>
@@ -283,48 +317,34 @@ export default function CreateEvent() {
           <div className="form-section">
             <h3>Registration Settings</h3>
             
-            <div className="form-group checkbox-group">
-              <label className="checkbox-label">
+            <div className="form-row">
+              <div className="form-group">
+                <label htmlFor="max_participants">Max Participants * <small>(Required for all events)</small></label>
                 <input
-                  type="checkbox"
-                  name="registration_required"
-                  checked={formData.registration_required}
+                  type="number"
+                  id="max_participants"
+                  name="max_participants"
+                  value={formData.max_participants}
                   onChange={handleInputChange}
+                  min="1"
+                  placeholder="Enter maximum number of participants"
+                  required
                 />
-                <span className="checkmark"></span>
-                Registration Required
-              </label>
-            </div>
-
-            {formData.registration_required && (
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="max_participants">Max Participants</label>
-                  <input
-                    type="number"
-                    id="max_participants"
-                    name="max_participants"
-                    value={formData.max_participants}
-                    onChange={handleInputChange}
-                    min="1"
-                    placeholder="Leave empty for no limit"
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="registration_deadline">Registration Deadline <small>(Click to select date & time)</small></label>
-                  <input
-                    type="datetime-local"
-                    id="registration_deadline"
-                    name="registration_deadline"
-                    value={formData.registration_deadline}
-                    onChange={handleInputChange}
-                    min={new Date().toISOString().slice(0, 16)}
-                    className="datetime-picker"
-                  />
-                </div>
               </div>
-            )}
+
+              <div className="form-group">
+                <label htmlFor="registration_deadline">Registration Deadline (Optional) <small>(Click to select date & time)</small></label>
+                <input
+                  type="datetime-local"
+                  id="registration_deadline"
+                  name="registration_deadline"
+                  value={formData.registration_deadline}
+                  onChange={handleInputChange}
+                  min={new Date().toISOString().slice(0, 16)}
+                  className="datetime-picker"
+                />
+              </div>
+            </div>
           </div>
 
           {/* Submit Button */}
