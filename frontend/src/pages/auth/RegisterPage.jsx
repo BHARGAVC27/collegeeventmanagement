@@ -111,7 +111,7 @@ export default function RegisterPage() {
                   value={formData.student_id}
                   onChange={handleChange}
                   required
-                  placeholder="CS2024001"
+                  placeholder="PES2UG23CS999"
                   disabled={loading}
                 />
               </div>
@@ -125,7 +125,7 @@ export default function RegisterPage() {
                   value={formData.name}
                   onChange={handleChange}
                   required
-                  placeholder="John Doe"
+                  placeholder="Govinda"
                   disabled={loading}
                 />
               </div>
@@ -140,7 +140,7 @@ export default function RegisterPage() {
                 value={formData.email}
                 onChange={handleChange}
                 required
-                placeholder="your.email@university.edu"
+                placeholder="srn@pesu.pes.edu"
                 disabled={loading}
               />
             </div>
@@ -184,7 +184,7 @@ export default function RegisterPage() {
                   name="phone"
                   value={formData.phone}
                   onChange={handleChange}
-                  placeholder="1234567890"
+                  placeholder="9981309456"
                   disabled={loading}
                 />
               </div>
