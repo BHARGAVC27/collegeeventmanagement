@@ -52,7 +52,7 @@ router.get('/clubs', authenticate, authorizeAdmin, async (req, res) => {
 // Create new club (admin only)
 router.post('/clubs', authenticate, authorizeAdmin, async (req, res) => {
     try {
-        const { name, description, faculty_coordinator_id, campus_id } = req.body;
+        const { name, description, faculty_coordinator_id, campus_id, club_head_student_id } = req.body;
 
         if (!name || !campus_id) {
             return res.status(400).json({
@@ -92,8 +92,37 @@ router.post('/clubs', authenticate, authorizeAdmin, async (req, res) => {
         const [result] = await pool.execute(
             `INSERT INTO clubs (name, description, faculty_coordinator_id, campus_id, created_by_admin_id, approved_by_admin_id, approval_status) 
              VALUES (?, ?, ?, ?, ?, ?, 'Approved')`,
-            [name, description, faculty_coordinator_id, campus_id, req.user.id, req.user.id]
+            [name, (description ?? null), (faculty_coordinator_id ?? null), campus_id, req.user.id, req.user.id]
         );
+
+        // If a club head is provided, assign them as the head for this club
+        if (club_head_student_id) {
+            // Verify student exists and is active
+            const [studentRows] = await pool.execute(
+                'SELECT id FROM students WHERE id = ? AND is_active = TRUE',
+                [club_head_student_id]
+            );
+
+            if (studentRows.length === 0) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Invalid club head student ID'
+                });
+            }
+
+            // Create membership as Head
+            await pool.execute(
+                `INSERT INTO club_memberships (student_id, club_id, role, is_active, approved_by_admin_id)
+                 VALUES (?, ?, 'Head', TRUE, ?)`,
+                [club_head_student_id, result.insertId, req.user.id]
+            );
+
+            // Update student role to club_head (user_roles.id = 2 assumed in schema)
+            await pool.execute(
+                'UPDATE students SET user_role_id = 2 WHERE id = ?',
+                [club_head_student_id]
+            );
+        }
 
         // Log the action
         await pool.execute(

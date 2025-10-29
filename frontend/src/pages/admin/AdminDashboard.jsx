@@ -37,10 +37,12 @@ export default function AdminDashboard() {
     name: '',
     description: '',
     faculty_coordinator_id: '',
-    campus_id: ''
+    campus_id: '',
+    club_head_student_id: ''
   });
   const [availableFaculty, setAvailableFaculty] = useState([]);
   const [availableCampuses, setAvailableCampuses] = useState([]);
+  const [availableStudents, setAvailableStudents] = useState([]);
   const [createClubLoading, setCreateClubLoading] = useState(false);
 
   // Edit Club Modal State
@@ -135,6 +137,16 @@ export default function AdminDashboard() {
         setEventStats(eventStatsResponse.stats || []);
       }
 
+      // Fetch students list for assigning club head
+      try {
+        const studentsResponse = await apiService.getStudents();
+        if (studentsResponse.success) {
+          setAvailableStudents(studentsResponse.students || []);
+        }
+      } catch (err) {
+        console.warn('Unable to load students for club head selection', err);
+      }
+
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
@@ -176,7 +188,8 @@ export default function AdminDashboard() {
       name: '',
       description: '',
       faculty_coordinator_id: '',
-      campus_id: ''
+      campus_id: '',
+      club_head_student_id: ''
     });
   };
 
@@ -210,7 +223,10 @@ export default function AdminDashboard() {
     setCreateClubLoading(true);
     
     try {
-      const response = await apiService.createClub(createClubForm);
+      const payload = { ...createClubForm };
+      if (!payload.faculty_coordinator_id) delete payload.faculty_coordinator_id;
+      if (!payload.club_head_student_id) delete payload.club_head_student_id;
+      const response = await apiService.createClub(payload);
       
       if (response.success) {
         alert('Club created successfully!');
@@ -332,7 +348,7 @@ export default function AdminDashboard() {
     setClubMembers([]);
   };
 
-  const handleRemoveMember = async (memberId, memberName, memberRole) => {
+  const handleRemoveMember = async (memberId, memberName) => {
     if (!window.confirm(`Are you sure you want to remove ${memberName} from ${selectedClub?.name}?`)) {
       return;
     }
@@ -684,7 +700,7 @@ export default function AdminDashboard() {
                     </span>
                   </div>
                   <div className="club-details">
-                    <p><strong>Campus:</strong> {club.campus_name}</p>
+                    <p><strong>Campus:</strong> {club.campus_id}</p>
                     <p><strong>Members:</strong> {club.member_count}</p>
                     <p><strong>Events:</strong> {club.event_count}</p>
                     {club.faculty_coordinator_name && (
@@ -1848,6 +1864,24 @@ ORDER BY total_events DESC;`}
                     ))}
                   </select>
                 </div>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="clubHeadStudentId">Assign Club Head</label>
+                <select
+                  id="clubHeadStudentId"
+                  name="club_head_student_id"
+                  value={createClubForm.club_head_student_id}
+                  onChange={handleCreateClubInputChange}
+                >
+                  <option value="">Select Student (Optional)</option>
+                  {availableStudents.map(student => (
+                    <option key={student.id} value={student.id}>
+                      {student.name} ({student.student_id}) - {student.email}
+                    </option>
+                  ))}
+                </select>
+                <small style={{color:'#64748b'}}>If selected, the student will be set as club head and added as a member.</small>
               </div>
 
               <div className="form-actions">
