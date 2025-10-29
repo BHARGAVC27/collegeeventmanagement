@@ -81,6 +81,46 @@ class ApiService {
     return this.apiCall('/venues');
   }
 
+  // Event management (club head)
+  async getEventRegistrations(eventId) {
+    const token = localStorage.getItem('token');
+    return this.apiCall(`/events/${eventId}/registrations`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+  }
+
+  async updateRegistrationAttendance(eventId, registrationId, attended) {
+    const token = localStorage.getItem('token');
+    return this.apiCall(`/events/${eventId}/registrations/${registrationId}/attendance`, {
+      method: 'PUT',
+      body: JSON.stringify({ attended }),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+  }
+
+  async getEventWinners(eventId) {
+    return this.apiCall(`/events/${eventId}/winners`);
+  }
+
+  async saveEventWinners(eventId, winners) {
+    const token = localStorage.getItem('token');
+    return this.apiCall(`/events/${eventId}/winners`, {
+      method: 'POST',
+      body: JSON.stringify({ winners }),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+  }
+
   // Register for an event
   async registerForEvent(eventId, registrationData) {
     return this.apiCall(`/events/${eventId}/register`, {

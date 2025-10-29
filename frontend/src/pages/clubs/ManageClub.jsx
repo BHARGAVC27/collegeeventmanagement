@@ -280,6 +280,11 @@ export default function ManageClub() {
                         </div>
                       )}
                     </dl>
+                    <div className="card-actions">
+                      <button className="manage-action-btn" onClick={() => navigate(`/events/${event.id}/manage`)}>
+                        Manage
+                      </button>
+                    </div>
                   </article>
                 ))}
               </div>
@@ -306,6 +311,7 @@ export default function ManageClub() {
                     <th>Registrations</th>
                     <th>Waitlisted</th>
                     <th>Cancelled</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -321,6 +327,11 @@ export default function ManageClub() {
                       <td>{event.registered_count || 0}</td>
                       <td>{event.waitlisted_count || 0}</td>
                       <td>{event.cancelled_count || 0}</td>
+                      <td>
+                        <button className="manage-action-btn" onClick={() => navigate(`/events/${event.id}/manage`)}>
+                          Manage
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>

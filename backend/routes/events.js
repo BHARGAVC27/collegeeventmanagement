@@ -1,6 +1,6 @@
 const express = require('express');
 const { pool } = require('../db/dbConnect');
-const { authenticate, authorizeStudent, authorizeClubHead, authorizeAdmin, authorizeClubOwnership } = require('../middleware/auth');
+const { authenticate, authorizeStudent, authorizeClubHead, authorizeAdmin } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -776,3 +776,166 @@ router.get('/events/user/:studentId', async (req, res) => {
 });
 
 module.exports = router;
+
+// =========================
+// Event management (club head)
+// =========================
+
+// Helper to ensure the authenticated club head owns the event's club
+async function verifyEventOwnership(userId, eventId) {
+    const [rows] = await pool.execute(
+        `SELECT e.organized_by_club_id AS club_id
+         FROM events e
+         JOIN club_memberships cm ON cm.club_id = e.organized_by_club_id
+         WHERE e.id = ? AND cm.student_id = ? AND cm.role = 'Head' AND cm.is_active = TRUE`,
+        [eventId, userId]
+    );
+    return rows.length > 0 ? rows[0].club_id : null;
+}
+
+// Get registrations for an event (club head only)
+router.get('/events/:eventId/registrations', authenticate, authorizeClubHead, async (req, res) => {
+    try {
+        const { eventId } = req.params;
+        const clubId = await verifyEventOwnership(req.user.id, eventId);
+        if (!clubId) {
+            return res.status(403).json({ success: false, error: 'Not authorized to manage this event' });
+        }
+
+        const [regs] = await pool.execute(
+            `SELECT 
+                er.id AS registration_id,
+                er.student_id,
+                er.event_id,
+                er.registration_status,
+                er.attended,
+                er.registration_time,
+                s.name AS student_name,
+                s.student_id AS roll_number,
+                s.email
+             FROM event_registrations er
+             JOIN students s ON s.id = er.student_id
+             WHERE er.event_id = ?
+             ORDER BY er.registration_time ASC`,
+            [eventId]
+        );
+
+        res.json({ success: true, count: regs.length, registrations: regs });
+    } catch (error) {
+        console.error('Error fetching event registrations:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch registrations' });
+    }
+});
+
+// Update attendance for a registration (club head only)
+router.put('/events/:eventId/registrations/:registrationId/attendance', authenticate, authorizeClubHead, async (req, res) => {
+    try {
+        const { eventId, registrationId } = req.params;
+        const { attended } = req.body;
+        const clubId = await verifyEventOwnership(req.user.id, eventId);
+        if (!clubId) {
+            return res.status(403).json({ success: false, error: 'Not authorized to manage this event' });
+        }
+
+        if (typeof attended !== 'boolean') {
+            return res.status(400).json({ success: false, error: 'attended must be boolean' });
+        }
+
+        const [result] = await pool.execute(
+            `UPDATE event_registrations SET attended = ? WHERE id = ? AND event_id = ?`,
+            [attended, registrationId, eventId]
+        );
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ success: false, error: 'Registration not found' });
+        }
+
+        res.json({ success: true, message: 'Attendance updated' });
+    } catch (error) {
+        console.error('Error updating attendance:', error);
+        res.status(500).json({ success: false, error: 'Failed to update attendance' });
+    }
+});
+
+// Get winners for an event (club head or public)
+router.get('/events/:eventId/winners', async (req, res) => {
+    try {
+        const { eventId } = req.params;
+        // Ensure table exists
+        await pool.execute(`CREATE TABLE IF NOT EXISTS event_winners (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            event_id INT NOT NULL,
+            student_id INT NOT NULL,
+            position TINYINT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            UNIQUE KEY uniq_event_position (event_id, position),
+            KEY idx_event (event_id)
+        ) ENGINE=InnoDB`);
+
+        const [rows] = await pool.execute(
+            `SELECT ew.id, ew.event_id, ew.student_id, ew.position, s.name AS student_name, s.student_id AS roll_number, s.email
+             FROM event_winners ew
+             JOIN students s ON s.id = ew.student_id
+             WHERE ew.event_id = ?
+             ORDER BY ew.position ASC`,
+            [eventId]
+        );
+        res.json({ success: true, winners: rows });
+    } catch (error) {
+        console.error('Error fetching winners:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch winners' });
+    }
+});
+
+// Save winners for an event (club head only)
+router.post('/events/:eventId/winners', authenticate, authorizeClubHead, async (req, res) => {
+    const connection = await pool.getConnection();
+    try {
+        const { eventId } = req.params;
+        const { winners } = req.body; // [{student_id, position}, ...]
+        const clubId = await verifyEventOwnership(req.user.id, eventId);
+        if (!clubId) {
+            connection.release();
+            return res.status(403).json({ success: false, error: 'Not authorized to manage this event' });
+        }
+
+        if (!Array.isArray(winners)) {
+            connection.release();
+            return res.status(400).json({ success: false, error: 'winners must be an array' });
+        }
+
+        await connection.beginTransaction();
+        await connection.execute(`CREATE TABLE IF NOT EXISTS event_winners (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            event_id INT NOT NULL,
+            student_id INT NOT NULL,
+            position TINYINT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            UNIQUE KEY uniq_event_position (event_id, position),
+            KEY idx_event (event_id)
+        ) ENGINE=InnoDB`);
+
+        // Remove existing winners for event
+        await connection.execute('DELETE FROM event_winners WHERE event_id = ?', [eventId]);
+
+        // Insert new winners
+        for (const w of winners) {
+            if (!w || !w.student_id || !w.position) continue;
+            await connection.execute(
+                `INSERT INTO event_winners (event_id, student_id, position) VALUES (?, ?, ?)`,
+                [eventId, w.student_id, w.position]
+            );
+        }
+
+        await connection.commit();
+        connection.release();
+        res.json({ success: true, message: 'Winners saved' });
+    } catch (error) {
+        await connection.rollback();
+        connection.release();
+        console.error('Error saving winners:', error);
+        res.status(500).json({ success: false, error: 'Failed to save winners' });
+    }
+});

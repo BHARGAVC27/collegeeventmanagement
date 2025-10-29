@@ -8,6 +8,7 @@ import DashboardPage from './pages/DashboardPage'
 import EventsPage from './pages/events/EventsPage'
 import CreateEvent from './pages/events/CreateEvent'
 import EventRegister from './pages/events/EventRegister'
+import ManageEvent from './pages/events/ManageEvent'
 import ClubsPage from './pages/clubs/ClubsPage'
 import ClubDetails from './pages/clubs/ClubDetails'
 import ManageClub from './pages/clubs/ManageClub'
@@ -72,6 +73,14 @@ function App() {
         element={
           <ProtectedRoute>
             <EventRegister />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/events/:eventId/manage" 
+        element={
+          <ProtectedRoute>
+            <ManageEvent />
           </ProtectedRoute>
         } 
       />

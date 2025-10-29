@@ -1,0 +1,19 @@
+.manage-event-main { padding: 24px; }
+.manage-event-container { max-width: 1100px; margin: 0 auto; display: grid; gap: 20px; }
+.event-header { display: flex; justify-content: space-between; align-items: center; }
+.event-header h1 { margin: 0 0 4px 0; }
+.section-header { display: flex; align-items: center; gap: 8px; }
+.badge { background: #222; color: #fff; border-radius: 999px; padding: 2px 10px; font-size: 12px; }
+.events-table { width: 100%; border-collapse: collapse; background: #fff; color: #111; }
+.events-table th, .events-table td { border-bottom: 1px solid #eee; padding: 10px; text-align: left; }
+.events-table thead th { background: #f6f7f9; font-weight: 600; }
+.manage-action-btn { padding: 8px 12px; border-radius: 8px; border: 1px solid #d0d6dd; background: #fff; cursor: pointer; }
+.manage-action-btn.primary { background: #2563eb; color: #fff; border-color: #1d4ed8; }
+.empty-state { background: #fff; color: #111; padding: 24px; border-radius: 12px; border: 1px solid #e5e7eb; }
+.empty-state.light { background: #f9fafb; }
+.loading-state { color: #111; }
+.winners-form { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; display: grid; gap: 12px; max-width: 520px; }
+.winner-row { display: grid; grid-template-columns: 140px 1fr; align-items: center; gap: 12px; }
+.winner-row select { padding: 8px; border: 1px solid #d1d5db; border-radius: 8px; }
+.hint { color: #6b7280; font-size: 12px; margin-top: -6px; }
+.toggle input { margin-right: 6px; }
