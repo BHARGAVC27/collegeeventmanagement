@@ -113,17 +113,57 @@ export default function ManageClub() {
     [members]
   );
 
+  // Safely combine date and time from different DB formats
+  const getEventDateTime = (event) => {
+    const rawDate = event?.event_date;
+    const rawTime = event?.start_time;
+
+    // Derive date-only portion
+    let dateOnly;
+    if (!rawDate) return null;
+    if (typeof rawDate === 'string') {
+      // If it already includes a time (has 'T'), take only the date part
+      dateOnly = rawDate.includes('T') ? rawDate.split('T')[0] : rawDate;
+    } else if (rawDate instanceof Date) {
+      // Convert to YYYY-MM-DD
+      const iso = rawDate.toISOString();
+      dateOnly = iso.split('T')[0];
+    } else {
+      // Fallback
+      try {
+        const iso = new Date(rawDate).toISOString();
+        dateOnly = iso.split('T')[0];
+      } catch {
+        return null;
+      }
+    }
+
+    // Normalize time
+    let timeOnly = rawTime || '00:00:00';
+    if (typeof timeOnly === 'string' && timeOnly.length === 5) {
+      // HH:MM -> HH:MM:00
+      timeOnly = `${timeOnly}:00`;
+    }
+
+    const combined = `${dateOnly}T${timeOnly}`;
+    const dt = new Date(combined);
+    return isNaN(dt.getTime()) ? null : dt;
+  };
+
   const sortedEvents = useMemo(() => {
     return [...events].sort((a, b) => {
-      const firstDate = new Date(`${a.event_date}T${a.start_time}`);
-      const secondDate = new Date(`${b.event_date}T${b.start_time}`);
+      const firstDate = getEventDateTime(a) || new Date(0);
+      const secondDate = getEventDateTime(b) || new Date(0);
       return secondDate - firstDate;
     });
   }, [events]);
 
   const upcomingEvents = useMemo(() => {
     const now = new Date();
-    return sortedEvents.filter((event) => new Date(`${event.event_date}T${event.start_time}`) >= now);
+    return sortedEvents.filter((event) => {
+      const dt = getEventDateTime(event);
+      return dt && dt >= now;
+    });
   }, [sortedEvents]);
 
   if (pageLoading) {
@@ -224,7 +264,7 @@ export default function ManageClub() {
                     <dl>
                       <div>
                         <dt>Date</dt>
-                        <dd>{new Date(`${event.event_date}T${event.start_time}`).toLocaleString()}</dd>
+                        <dd>{apiService.formatEventDateTime(event.event_date, event.start_time)}</dd>
                       </div>
                       <div>
                         <dt>Registrations</dt>
@@ -272,7 +312,7 @@ export default function ManageClub() {
                   {sortedEvents.map((event) => (
                     <tr key={event.id}>
                       <td>{event.name}</td>
-                      <td>{new Date(`${event.event_date}T${event.start_time}`).toLocaleString()}</td>
+                      <td>{apiService.formatEventDateTime(event.event_date, event.start_time)}</td>
                       <td>
                         <span className={`status-pill status-${event.status?.toLowerCase() || 'pending'}`}>
                           {event.status?.replace('_', ' ') || 'Pending'}
