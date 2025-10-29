@@ -11,6 +11,9 @@ export default function DashboardPage() {
   const [upcomingEvents, setUpcomingEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [clubId, setClubId] = useState(null);
+  const [clubIdLoading, setClubIdLoading] = useState(false);
+  const [clubIdError, setClubIdError] = useState(null);
   
   // Get user info from localStorage
   useEffect(() => {
@@ -28,23 +31,47 @@ export default function DashboardPage() {
   // Get user's name with fallbacks
   const getUserName = () => {
     if (!user) return 'User';
-    
     if (user.name) {
       return user.name.split(' ')[0];
     }
-    
     if (user.email) {
       return user.email.split('@')[0];
     }
-    
     return 'User';
   };
 
   // Check if user is club head
-  const isClubHead = () => {
-    return user && user.role === 'club_head';
-  };
+  const isClubHead = user && user.role === 'club_head';
 
+  useEffect(() => {
+    const loadClubId = async () => {
+      if (!user || !isClubHead) {
+        setClubId(null);
+        setClubIdError(null);
+        return;
+      }
+
+      try {
+        setClubIdLoading(true);
+        setClubIdError(null);
+        const response = await apiService.getClubIdByClubHead(user.id);
+        if (response.success) {
+          setClubId(response.clubId);
+        } else {
+          setClubId(null);
+          setClubIdError(response.error || 'No club assigned yet.');
+        }
+      } catch (err) {
+        console.error('Failed to fetch club for head:', err);
+        setClubId(null);
+        setClubIdError('Unable to load your club details.');
+      } finally {
+        setClubIdLoading(false);
+      }
+    };
+
+    loadClubId();
+  }, [user, isClubHead]);
   // Fetch upcoming events
   useEffect(() => {
     if (!user) return;
@@ -86,13 +113,13 @@ export default function DashboardPage() {
         <div className="welcome-section">
           <h1 className="welcome-title">
             Hey, Welcome {getUserName()}
-            {isClubHead() && <span className="role-badge">Club Head</span>}
+            {isClubHead && <span className="role-badge">Club Head</span>}
           </h1>
           <p className="welcome-subtitle">Take a look at what's happening in campus</p>
         </div>
 
         {/* Club Head Actions */}
-        {isClubHead() && (
+        {isClubHead && (
           <div className="club-head-section">
             <div className="quick-actions">
               <h3>Quick Actions</h3>
@@ -105,11 +132,15 @@ export default function DashboardPage() {
                 </button>
                 <button 
                   className="action-btn secondary"
-                  onClick={() => navigate('/club/manage')}
+                  disabled={!clubId || clubIdLoading}
+                  onClick={() => clubId && navigate(`/clubs/${clubId}/manage`)}
                 >
-                  Manage Club
+                  {clubIdLoading ? 'Loading...' : 'Manage Club'}
                 </button>
               </div>
+              {clubIdError && (
+                <p style={{ marginTop: '0.5rem', color: '#c53030', fontSize: '0.9rem' }}>{clubIdError}</p>
+              )}
             </div>
           </div>
         )}

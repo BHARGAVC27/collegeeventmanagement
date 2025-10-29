@@ -109,6 +109,25 @@ class ApiService {
     return this.apiCall(`/clubs/${id}`);
   }
 
+  async getClubIdByClubHead(id) {
+    const token = localStorage.getItem('token');
+    return this.apiCall(`/clubs/head/${id}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+  }
+
+  async getClubMembersPublic(clubId) {
+    return this.apiCall(`/clubs/${clubId}/members`);
+  }
+
+  async getClubEvents(clubId) {
+    return this.apiCall(`/clubs/${clubId}/events`);
+  }
+
   async joinClub(clubId, email) {
     console.log('Joining club:', { clubId, email });
     return this.apiCall(`/clubs/${clubId}/join`, {

@@ -237,7 +237,6 @@ export default function CreateEvent() {
                   className="disabled-input"
                   title="Club is automatically selected based on your club head role"
                 />
-                <small className="form-hint">Automatically selected based on your club head role</small>
               </div>
             </div>
           </div>

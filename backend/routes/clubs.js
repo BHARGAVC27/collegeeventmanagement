@@ -1,5 +1,6 @@
 const express = require('express');
 const { pool } = require('../db/dbConnect');
+const { authenticate, authorizeClubHead } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -42,7 +43,67 @@ router.get('/clubs', async (req, res) => {
     }
 });
 
-// Get club by ID
+// Get club managed by the authenticated club head
+router.get('/clubs/head/:headId', authenticate, authorizeClubHead, async (req, res) => {
+    try {
+        const { headId } = req.params;
+
+        // Ensure the authenticated club head is requesting their own data
+        if (parseInt(headId, 10) !== parseInt(req.user.id, 10)) {
+            return res.status(403).json({
+                success: false,
+                error: 'You are not authorized to access this club information'
+            });
+        }
+
+        const [clubs] = await pool.execute(
+            `SELECT 
+                c.id,
+                c.name,
+                c.description,
+                c.faculty_coordinator_id,
+                fa.name AS faculty_coordinator,
+                c.is_active,
+                c.campus_id,
+                campus.name AS campus_name,
+                campus.location AS campus_location,
+                cm.join_date AS head_since,
+                head.name AS head_name,
+                head.email AS head_email,
+                head.student_id AS head_student_id,
+                COUNT(DISTINCT members.id) AS member_count
+            FROM club_memberships cm
+            JOIN clubs c ON cm.club_id = c.id
+            JOIN students head ON cm.student_id = head.id
+            LEFT JOIN faculty_admin fa ON c.faculty_coordinator_id = fa.id
+            LEFT JOIN campus ON c.campus_id = campus.id
+            LEFT JOIN club_memberships members ON members.club_id = c.id AND members.is_active = TRUE
+            WHERE cm.student_id = ? AND cm.role = 'Head' AND cm.is_active = TRUE
+            GROUP BY c.id, fa.name, campus.name, campus.location, cm.join_date, head.name, head.email, head.student_id`,
+            [headId]
+        );
+
+        if (clubs.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'No club found for this club head'
+            });
+        }
+
+        res.json({
+            success: true,
+            clubId: clubs[0].id,
+            club: clubs[0]
+        });
+    } catch (error) {
+        console.error('Error fetching club for head:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to fetch club information'
+        });
+    }
+});
+
 router.get('/clubs/:id', async (req, res) => {
     try {
         const { id } = req.params;
@@ -124,6 +185,51 @@ router.get('/clubs/:clubId/members', async (req, res) => {
         res.status(500).json({
             success: false,
             error: 'Failed to fetch club members'
+        });
+    }
+});
+
+// Get events for a specific club
+router.get('/clubs/:clubId/events', async (req, res) => {
+    try {
+        const { clubId } = req.params;
+
+        const [events] = await pool.execute(
+            `SELECT 
+                e.id,
+                e.name,
+                e.description,
+                e.event_date,
+                e.start_time,
+                e.end_time,
+                e.event_type,
+                e.status,
+                e.max_participants,
+                e.registration_required,
+                e.registration_deadline,
+                e.current_registrations,
+                e.last_registration_update,
+                COUNT(CASE WHEN er.registration_status = 'Registered' THEN 1 END) AS registered_count,
+                COUNT(CASE WHEN er.registration_status = 'Waitlisted' THEN 1 END) AS waitlisted_count,
+                COUNT(CASE WHEN er.registration_status = 'Cancelled' THEN 1 END) AS cancelled_count
+            FROM events e
+            LEFT JOIN event_registrations er ON e.id = er.event_id
+            WHERE e.organized_by_club_id = ?
+            GROUP BY e.id
+            ORDER BY e.event_date DESC, e.start_time DESC`,
+            [clubId]
+        );
+
+        res.json({
+            success: true,
+            count: events.length,
+            events
+        });
+    } catch (error) {
+        console.error('Error fetching club events:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to fetch club events'
         });
     }
 });

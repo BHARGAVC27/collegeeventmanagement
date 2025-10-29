@@ -10,6 +10,7 @@ import CreateEvent from './pages/events/CreateEvent'
 import EventRegister from './pages/events/EventRegister'
 import ClubsPage from './pages/clubs/ClubsPage'
 import ClubDetails from './pages/clubs/ClubDetails'
+import ManageClub from './pages/clubs/ManageClub'
 import MyEvents from './pages/events/MyEvents'
 import AdminLoginPage from './pages/admin/AdminLoginPage'
 import AdminDashboard from './pages/admin/AdminDashboard'
@@ -87,6 +88,14 @@ function App() {
         element={
           <ProtectedRoute>
             <ClubDetails />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/clubs/:clubId/manage" 
+        element={
+          <ProtectedRoute>
+            <ManageClub />
           </ProtectedRoute>
         } 
       />
