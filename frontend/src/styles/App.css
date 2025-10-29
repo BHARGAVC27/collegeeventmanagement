@@ -270,18 +270,23 @@ html, body, #root{
   margin-bottom: 60px;
 }
 
+.welcome-title-row {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
 .welcome-title {
   font-size: 48px;
   font-weight: 800;
-  margin: 0 0 12px 0;
+  margin: 0;
   color: var(--white);
   background: linear-gradient(135deg, var(--white) 0%, var(--accent) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  display: inline-flex;
-  align-items: center;
-  gap: 12px;
 }
 
 .club-head-badge {
@@ -290,12 +295,12 @@ html, body, #root{
   gap: 6px;
   padding: 6px 14px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.18);
-  color: #0f172a;
+  background: rgba(15, 23, 42, 0.65);
+  color: #ffffff;
   font-size: 0.9rem;
   font-weight: 600;
   letter-spacing: 0.02em;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+  box-shadow: 0px 2px 16px rgba(195, 202, 218, 0.35);
 }
 
 .welcome-subtitle {
@@ -534,6 +539,11 @@ html, body, #root{
     padding: 40px 20px;
   }
   
+  .welcome-title-row {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
   .welcome-title {
     font-size: 2rem;
   }
@@ -551,6 +561,10 @@ html, body, #root{
   .nav-left, .nav-center, .nav-right {
     flex-wrap: wrap;
     justify-content: center;
+  }
+  
+  .welcome-title-row {
+    gap: 10px;
   }
   
   .welcome-title {

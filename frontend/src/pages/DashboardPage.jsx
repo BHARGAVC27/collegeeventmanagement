@@ -111,12 +111,10 @@ export default function DashboardPage() {
       {/* Main Content */}
       <main className="dashboard-main">
         <div className="welcome-section">
-          <h1 className="welcome-title">
-            Hey, Welcome {getUserName()}
-            {isClubHead && (
-              <span className="role-badge club-head-badge">Club Head</span>
-            )}
-          </h1>
+          <div className="welcome-title-row">
+            <h1 className="welcome-title">Hey, Welcome {getUserName()}</h1>
+            {isClubHead && <span className="club-head-badge">Club Head</span>}
+          </div>
           <p className="welcome-subtitle">Take a look at what's happening in campus</p>
         </div>
 
