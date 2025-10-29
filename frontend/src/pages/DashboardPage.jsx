@@ -113,7 +113,9 @@ export default function DashboardPage() {
         <div className="welcome-section">
           <h1 className="welcome-title">
             Hey, Welcome {getUserName()}
-            {isClubHead && <span className="role-badge">Club Head</span>}
+            {isClubHead && (
+              <span className="role-badge club-head-badge">Club Head</span>
+            )}
           </h1>
           <p className="welcome-subtitle">Take a look at what's happening in campus</p>
         </div>
