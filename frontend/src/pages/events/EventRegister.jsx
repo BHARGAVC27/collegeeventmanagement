@@ -1,19 +1,20 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { toast, Toaster } from 'sonner'
+import { Calendar, MapPin, Clock, Users, Upload, CheckCircle, AlertCircle, ArrowLeft, Building2 } from 'lucide-react'
 import apiService from '../../services/apiService'
 import NavBar from '../../components/NavBar'
 
 export default function EventRegister() {
   const { eventId } = useParams()
   const navigate = useNavigate()
-  
+
   const [event, setEvent] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [submitting, setSubmitting] = useState(false)
   const [paymentScreenshot, setPaymentScreenshot] = useState(null)
-  
+
   // Form data with user info pre-filled
   const [formData, setFormData] = useState({
     name: '',
@@ -53,7 +54,6 @@ export default function EventRegister() {
   useEffect(() => {
     const token = localStorage.getItem('token')
     if (token) {
-      // You can fetch user profile or get basic info from localStorage
       const userInfo = JSON.parse(localStorage.getItem('user') || '{}')
       setFormData(prev => ({
         ...prev,
@@ -75,14 +75,12 @@ export default function EventRegister() {
   const handleFileChange = (e) => {
     const file = e.target.files[0]
     if (file) {
-      // Validate file type
       const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
       if (!validTypes.includes(file.type)) {
         toast.error('Please upload a valid image file (JPEG, PNG, GIF, or WebP)')
         return
       }
 
-      // Validate file size (max 5MB)
       const maxSize = 5 * 1024 * 1024 // 5MB in bytes
       if (file.size > maxSize) {
         toast.error('File size must be less than 5MB')
@@ -103,12 +101,10 @@ export default function EventRegister() {
     setError(null)
 
     try {
-      // Validate required fields
       if (!formData.name || !formData.email || !formData.phone) {
         throw new Error('Please fill in all required fields')
       }
 
-      // Prepare registration data
       const registrationData = {
         name: formData.name,
         email: formData.email,
@@ -116,18 +112,11 @@ export default function EventRegister() {
         paymentScreenshot: paymentScreenshot ? paymentScreenshot.name : null
       }
 
-      console.log('Registering for event:', {
-        eventId,
-        ...registrationData
-      })
-
-      // Call the API to register for the event
       const response = await apiService.registerForEvent(eventId, registrationData)
 
       if (response.success) {
-        // Check if this is a re-registration (message contains "re-registered")
         const isReRegistration = response.message && response.message.toLowerCase().includes('re-registered')
-        
+
         if (isReRegistration) {
           toast.success('Welcome Back! 🎉', {
             description: 'You have successfully re-registered for this event.',
@@ -139,14 +128,12 @@ export default function EventRegister() {
             duration: 3000,
           })
         }
-        
+
         setTimeout(() => {
           navigate('/events')
         }, 2500)
       } else {
-        // Handle different error cases
         if (response.status === 400) {
-          // Already registered or validation error
           toast.warning('Already Registered', {
             description: response.error || 'You have already registered for this event.',
             duration: 3000,
@@ -178,18 +165,23 @@ export default function EventRegister() {
 
   if (loading) {
     return (
-      <div className="loading-spinner">
-        <div className="spinner"></div>
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-600"></div>
       </div>
     )
   }
 
   if (error || !event) {
     return (
-      <div className="page-root">
-        <div className="error-container">
-          <p className="error-message">{error || 'Event not found'}</p>
-          <button className="btn primary" onClick={() => navigate('/events')}>
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
+        <div className="bg-red-50 text-red-600 p-6 rounded-2xl max-w-md w-full text-center border border-red-100">
+          <AlertCircle className="w-12 h-12 mx-auto mb-4" />
+          <h2 className="text-xl font-bold mb-2">Error Loading Event</h2>
+          <p className="mb-6">{error || 'Event not found'}</p>
+          <button
+            onClick={() => navigate('/events')}
+            className="px-6 py-2 bg-white text-slate-700 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors font-medium shadow-sm"
+          >
             Back to Events
           </button>
         </div>
@@ -198,193 +190,216 @@ export default function EventRegister() {
   }
 
   return (
-    <div className="page-root">
+    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
       <Toaster position="top-right" richColors closeButton />
-      {/* Navigation Bar */}
       <NavBar activePage="events" />
 
-      {/* Event Registration Content */}
-      <div className="event-register-container">
-        {/* Left Side - Event Card */}
-        <div className="event-register-left">
-        <div className="event-register-card">
-          <div className="event-card-image">
-            <img 
-              src="https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?w=500&h=400&fit=crop" 
-              alt={event.name}
-              onError={(e) => {
-                e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300"%3E%3Crect fill="%236366f1" width="400" height="300"/%3E%3Ctext fill="%23ffffff" font-family="Arial" font-size="20" x="50%25" y="50%25" text-anchor="middle" dominant-baseline="middle"%3EEvent Image%3C/text%3E%3C/svg%3E'
-              }}
-            />
-            <div className="event-status-badge">
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                <circle cx="10" cy="10" r="10" fill="#10B981"/>
-                <path d="M6 10L9 13L14 7" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-              <span>Approved</span>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <button
+          onClick={() => navigate('/events')}
+          className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors mb-8 group font-medium"
+        >
+          <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+          Back to Events
+        </button>
+
+        <div className="grid lg:grid-cols-2 gap-12 items-start">
+          {/* Left Side - Event Card */}
+          <div className="lg:sticky lg:top-24">
+            <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-xl shadow-indigo-500/10">
+              <div className="relative h-64 sm:h-80">
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 to-transparent z-10" />
+                <img
+                  src={event.image_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(event.name)}&background=random&size=400`}
+                  alt={event.name}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(event.name)}&background=random&size=400`
+                  }}
+                />
+                <div className="absolute top-4 right-4 z-20">
+                  <span className="px-4 py-1.5 rounded-full bg-green-500/90 backdrop-blur-sm text-white text-sm font-bold shadow-sm flex items-center gap-1.5 border border-white/20">
+                    <CheckCircle className="w-4 h-4" />
+                    Approved
+                  </span>
+                </div>
+                <div className="absolute bottom-6 left-6 z-20">
+                  <h1 className="text-3xl sm:text-4xl font-extrabold text-white mb-2 leading-tight">{event.name}</h1>
+                  <p className="text-white/90 text-lg flex items-center gap-2">
+                    <Building2 className="w-5 h-5" />
+                    Hosted by {event.club_name}
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-8 space-y-6">
+                <div className="grid sm:grid-cols-2 gap-6">
+                  <div className="flex items-start gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 shrink-0">
+                      <Calendar className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-slate-500 font-medium mb-0.5">Date</p>
+                      <p className="font-semibold text-slate-900">{apiService.formatEventDate(event.event_date)}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 shrink-0">
+                      <Clock className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-slate-500 font-medium mb-0.5">Time</p>
+                      <p className="font-semibold text-slate-900">{apiService.formatEventTime(event.start_time)}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 shrink-0">
+                      <MapPin className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-slate-500 font-medium mb-0.5">Venue</p>
+                      <p className="font-semibold text-slate-900">{event.venue_name || 'TBA'}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 shrink-0">
+                      <Users className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-slate-500 font-medium mb-0.5">Availability</p>
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-slate-900">{event.registered_count || 0} registered</span>
+                        {event.max_participants && (
+                          <span className="text-sm text-slate-500">/ {event.max_participants} max</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {event.max_participants && event.registered_count >= event.max_participants && (
+                  <div className="bg-orange-50 border border-orange-100 rounded-xl p-4 flex items-start gap-3 text-orange-700">
+                    <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+                    <p className="text-sm font-medium">This event is currently full. Registering now will add you to the waitlist.</p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-          
-          <div className="event-card-content">
-            <h2 className="event-card-title">{event.name}</h2>
-            
-            <div className="event-card-details">
-              <div className="event-detail-item">
-                <svg className="event-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                  <line x1="16" y1="2" x2="16" y2="6"/>
-                  <line x1="8" y1="2" x2="8" y2="6"/>
-                  <line x1="3" y1="10" x2="21" y2="10"/>
-                </svg>
-                <span>{apiService.formatEventDate(event.event_date)}, {apiService.formatEventTime(event.start_time)}</span>
-              </div>
-              
-              <div className="event-detail-item">
-                <svg className="event-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
-                  <circle cx="12" cy="10" r="3"/>
-                </svg>
-                <span>{event.venue_name || 'Central Quad'}</span>
-              </div>
-              
-              <div className="event-detail-item">
-                <svg className="event-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                  <circle cx="9" cy="7" r="4"/>
-                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-                  <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-                </svg>
-                <span>Hosted by {event.club_name || 'Music Society'}</span>
-              </div>
+
+          {/* Right Side - Registration Form */}
+          <div className="bg-white border border-slate-200 rounded-3xl p-8 shadow-lg shadow-slate-200/50">
+            <div className="mb-8">
+              <h2 className="text-2xl font-bold text-slate-900 mb-2">Secure Your Spot</h2>
+              <p className="text-slate-500">Fill in your details below to complete your registration.</p>
             </div>
 
-            <div className="event-registration-count">
-              <svg className="event-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                <circle cx="9" cy="7" r="4"/>
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-              </svg>
-              <span className="registration-number">{event.registered_count || 0}</span>
-              <span className="registration-label">
-                Going
-                {event.max_participants && (
-                  <span className="max-capacity"> / {event.max_participants} max</span>
-                )}
-              </span>
-            </div>
-            
-            {event.max_participants && event.registered_count >= event.max_participants && (
-              <div className="event-full-warning">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="12" cy="12" r="10"/>
-                  <line x1="12" y1="8" x2="12" y2="12"/>
-                  <line x1="12" y1="16" x2="12.01" y2="16"/>
-                </svg>
-                <span>This event is full. You will be added to the waitlist.</span>
+            {error && (
+              <div className="bg-red-50 border border-red-100 text-red-600 rounded-xl p-4 mb-6 flex items-center gap-3">
+                <AlertCircle className="w-5 h-5" />
+                <p className="text-sm font-medium">{error}</p>
               </div>
             )}
+
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="space-y-2">
+                <label htmlFor="name" className="text-sm font-medium text-slate-700 ml-1">Full Name</label>
+                <input
+                  type="text"
+                  id="name"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  required
+                  className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all placeholder:text-slate-400 text-slate-900"
+                  placeholder="Enter your full name"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="email" className="text-sm font-medium text-slate-700 ml-1">Email Address</label>
+                <input
+                  type="email"
+                  id="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  required
+                  className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all placeholder:text-slate-400 text-slate-900"
+                  placeholder="Enter your email"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="phone" className="text-sm font-medium text-slate-700 ml-1">Phone Number</label>
+                <input
+                  type="tel"
+                  id="phone"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleInputChange}
+                  required
+                  className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all placeholder:text-slate-400 text-slate-900"
+                  placeholder="Enter your phone number"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-700 ml-1">Payment Screenshot (Optional)</label>
+                <div className="relative">
+                  <input
+                    type="file"
+                    id="paymentScreenshot"
+                    name="paymentScreenshot"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
+                  <label
+                    htmlFor="paymentScreenshot"
+                    className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-xl cursor-pointer transition-all ${paymentScreenshot
+                      ? 'border-indigo-500 bg-indigo-50'
+                      : 'border-slate-200 hover:border-indigo-300 hover:bg-slate-50'
+                      }`}
+                  >
+                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                      <Upload className={`w-8 h-8 mb-2 ${paymentScreenshot ? 'text-indigo-600' : 'text-slate-400'}`} />
+                      <p className="text-sm text-slate-500 text-center px-4">
+                        {paymentScreenshot ? (
+                          <span className="text-indigo-600 font-medium">{paymentScreenshot.name}</span>
+                        ) : (
+                          <span>Click to upload screenshot</span>
+                        )}
+                      </p>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={submitting}
+                className="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold text-lg shadow-lg shadow-indigo-500/25 hover:shadow-xl hover:shadow-indigo-500/30 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-70 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 mt-8"
+              >
+                {submitting ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Registering...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="w-5 h-5" />
+                    Confirm Registration
+                  </>
+                )}
+              </button>
+            </form>
           </div>
         </div>
       </div>
-
-      {/* Right Side - Registration Form */}
-      <div className="event-register-right">
-        <div className="register-form-container">
-          <h1 className="register-title">Register for Event</h1>
-          <p className="register-subtitle">Fill in your details to register for this event</p>
-
-          {error && (
-            <div className="error-banner">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="10"/>
-                <line x1="12" y1="8" x2="12" y2="12"/>
-                <line x1="12" y1="16" x2="12.01" y2="16"/>
-              </svg>
-              <span>{error}</span>
-            </div>
-          )}
-
-          <form className="register-form" onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label htmlFor="name">Full Name</label>
-              <input
-                type="text"
-                id="name"
-                name="name"
-                value={formData.name}
-                onChange={handleInputChange}
-                required
-                placeholder="Enter your full name"
-              />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="email">Email Address</label>
-              <input
-                type="email"
-                id="email"
-                name="email"
-                value={formData.email}
-                onChange={handleInputChange}
-                required
-                placeholder="Enter your email"
-              />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="phone">Phone Number</label>
-              <input
-                type="tel"
-                id="phone"
-                name="phone"
-                value={formData.phone}
-                onChange={handleInputChange}
-                required
-                placeholder="Enter your phone number"
-              />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="paymentScreenshot">Upload Payment Screenshot</label>
-              <div className="file-upload-wrapper">
-                <input
-                  type="file"
-                  id="paymentScreenshot"
-                  name="paymentScreenshot"
-                  accept="image/*"
-                  onChange={handleFileChange}
-                  className="file-input"
-                />
-                <label htmlFor="paymentScreenshot" className="file-upload-label">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                    <polyline points="17 8 12 3 7 8"/>
-                    <line x1="12" y1="3" x2="12" y2="15"/>
-                  </svg>
-                  <span>{paymentScreenshot ? paymentScreenshot.name : 'Upload payment screenshot'}</span>
-                </label>
-              </div>
-              {paymentScreenshot && (
-                <p className="file-name">Selected: {paymentScreenshot.name}</p>
-              )}
-            </div>
-
-            <button 
-              type="submit" 
-              className="register-submit-btn"
-              disabled={submitting}
-            >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                <polyline points="22 4 12 14.01 9 11.01"/>
-              </svg>
-              {submitting ? 'Registering...' : 'Register'}
-            </button>
-          </form>
-        </div>
-      </div>
-    </div>
     </div>
   )
 }
