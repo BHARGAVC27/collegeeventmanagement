@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Lock, Mail, ArrowRight, AlertCircle } from 'lucide-react';
 import apiService from '../../services/apiService';
-import './AdminLogin.css';
 
 export default function AdminLoginPage() {
   const [formData, setFormData] = useState({
@@ -47,84 +47,118 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <div className="admin-login-container">
-      <div className="admin-login-card">
-        <div className="admin-login-header">
-          <div className="admin-icon">
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 2C13.1 2 14 2.9 14 4C14 5.1 13.1 6 12 6C10.9 6 10 5.1 10 4C10 2.9 10.9 2 12 2ZM21 9V7L15 4.5C14.7 4.4 14.3 4.4 14 4.5L12 5.3L10 4.5C9.7 4.4 9.3 4.4 9 4.5L3 7V9H21ZM12 7L15 8.2V20H9V8.2L12 7Z" fill="currentColor"/>
-            </svg>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4">
+      {/* Background decoration */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-24 -right-24 w-96 h-96 bg-primary/20 rounded-full blur-3xl opacity-20 animate-pulse"></div>
+        <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-violet-500/20 rounded-full blur-3xl opacity-20 animate-pulse" style={{ animationDelay: '1s' }}></div>
+      </div>
+
+      <div className="w-full max-w-md relative z-10">
+        <div className="bg-slate-950/50 backdrop-blur-xl border border-slate-800/50 rounded-2xl shadow-2xl overflow-hidden">
+
+          {/* Header */}
+          <div className="p-8 pb-6 text-center border-b border-slate-800/50 bg-slate-900/30">
+            <div className="mb-6 flex justify-center">
+              <img
+                src="/logo-clean.png"
+                alt="EventNexus Logo"
+                className="h-16 object-contain drop-shadow-lg"
+              />
+            </div>
+            <h1 className="text-2xl font-bold text-white mb-2">EventNexus Admin Portal</h1>
+            <p className="text-slate-400 text-sm">Secure access for faculty & administration</p>
           </div>
-          <h1>Admin Portal</h1>
-          <p>Faculty & Administrative Access</p>
+
+          {/* Form */}
+          <div className="p-8 pt-6">
+            <form onSubmit={handleSubmit} className="space-y-5">
+              {error && (
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm animate-in fade-in slide-in-from-top-2">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  {error}
+                </div>
+              )}
+
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-slate-300 ml-1" htmlFor="email">
+                  Email Address
+                </label>
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Mail className="h-5 w-5 text-slate-500 group-focus-within:text-primary transition-colors" />
+                  </div>
+                  <input
+                    id="email"
+                    name="email"
+                    type="email"
+                    required
+                    value={formData.email}
+                    onChange={handleChange}
+                    className="block w-full pl-10 pr-3 py-2.5 bg-slate-900/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all"
+                    placeholder="admin@university.edu"
+                    disabled={loading}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-slate-300 ml-1" htmlFor="password">
+                  Password
+                </label>
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Lock className="h-5 w-5 text-slate-500 group-focus-within:text-primary transition-colors" />
+                  </div>
+                  <input
+                    id="password"
+                    name="password"
+                    type="password"
+                    required
+                    value={formData.password}
+                    onChange={handleChange}
+                    className="block w-full pl-10 pr-3 py-2.5 bg-slate-900/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all"
+                    placeholder="••••••••"
+                    disabled={loading}
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full flex items-center justify-center gap-2 py-2.5 px-4 border border-transparent rounded-xl shadow-sm text-sm font-semibold text-white bg-gradient-to-r from-primary to-violet-600 hover:from-primary/90 hover:to-violet-600/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:shadow-lg hover:shadow-primary/20 hover:-translate-y-0.5"
+              >
+                {loading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Authenticating...
+                  </>
+                ) : (
+                  <>
+                    Sign In <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
+              </button>
+            </form>
+
+            <div className="mt-8 pt-6 border-t border-slate-800/50">
+              <div className="text-center">
+                <p className="text-slate-500 text-sm mb-3">Not an administrator?</p>
+                <button
+                  onClick={() => navigate('/login')}
+                  className="text-sm font-medium text-primary hover:text-primary/80 transition-colors flex items-center justify-center gap-1 mx-auto group"
+                >
+                  Return to Student Portal
+                  <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="admin-login-form">
-          {error && (
-            <div className="error-message">
-              {error}
-            </div>
-          )}
-
-          <div className="form-group">
-            <label htmlFor="email">Email Address</label>
-            <input
-              type="email"
-              id="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              required
-              placeholder="admin@university.edu"
-              disabled={loading}
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="password">Password</label>
-            <input
-              type="password"
-              id="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              required
-              placeholder="Enter your password"
-              disabled={loading}
-            />
-          </div>
-
-          <button 
-            type="submit" 
-            className={`admin-login-btn ${loading ? 'loading' : ''}`}
-            disabled={loading}
-          >
-            {loading ? (
-              <>
-                <span className="spinner"></span>
-                Signing In...
-              </>
-            ) : (
-              'Sign In to Admin Panel'
-            )}
-          </button>
-        </form>
-
-        <div className="admin-login-footer">
-          <div className="divider">
-            <span>or</span>
-          </div>
-          <button 
-            className="student-portal-btn"
-            onClick={() => navigate('/login')}
-            type="button"
-          >
-            Go to Student Portal
-          </button>
-          
-          <div className="admin-note">
-            <p>This portal is restricted to authorized faculty and administrative staff only.</p>
-          </div>
+        <div className="text-center mt-6 text-slate-500 text-xs">
+          &copy; {new Date().getFullYear()} EventNexus. All rights reserved.
         </div>
       </div>
     </div>
