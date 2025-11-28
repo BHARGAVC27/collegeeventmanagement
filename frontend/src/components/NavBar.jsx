@@ -1,100 +1,103 @@
 import React from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
+import { LayoutDashboard, Calendar, Users, CalendarCheck, PlusCircle, LogOut, User } from 'lucide-react'
 
-export default function NavBar({ activePage = '' }) {
+export default function NavBar() {
   const navigate = useNavigate()
+  const location = useLocation()
+
+  // Determine active page based on path
+  const getActivePage = () => {
+    const path = location.pathname
+    if (path === '/dashboard') return 'dashboard'
+    if (path === '/events') return 'events'
+    if (path === '/clubs') return 'clubs'
+    if (path === '/my-events') return 'my-events'
+    if (path === '/create-event') return 'create-event'
+    return ''
+  }
+
+  const activePage = getActivePage()
 
   const handleLogout = () => {
-    // Clear the JWT token from localStorage
     localStorage.removeItem('token')
     localStorage.removeItem('userRole')
     localStorage.removeItem('userId')
     localStorage.removeItem('user')
     localStorage.removeItem('userType')
-    // Redirect to home page
     navigate('/')
   }
 
-  // Check if user is club head
   const isClubHead = () => {
     const user = JSON.parse(localStorage.getItem('user') || '{}')
     const userType = localStorage.getItem('userType')
     return userType === 'student' && user.role?.includes('club_head')
   }
 
+  const NavButton = ({ path, icon: Icon, label, activeId }) => (
+    <button
+      onClick={() => navigate(path)}
+      className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 
+        ${activePage === activeId
+          ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
+          : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+        }`}
+    >
+      <Icon size={18} />
+      <span>{label}</span>
+    </button>
+  )
+
   return (
-    <nav className="dashboard-nav">
-      <div className="nav-left">
-        <div 
-          className="logo-btn" 
-          onClick={() => navigate('/dashboard')} 
-          style={{ cursor: 'pointer' }}
+    <nav className="flex items-center justify-between px-6 py-4 bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-50">
+      <div className="flex items-center gap-8">
+        <div
+          onClick={() => navigate('/dashboard')}
+          className="text-xl font-bold cursor-pointer hover:opacity-80 transition-opacity flex items-center gap-2"
         >
-          Logo
+          <img src="/logo-clean.png" alt="EventNexus" className="h-14 object-contain" />
+        </div>
+
+        <div className="hidden md:flex items-center gap-1 bg-slate-50 p-1 rounded-full border border-slate-200">
+          <NavButton path="/dashboard" icon={LayoutDashboard} label="Dashboard" activeId="dashboard" />
+          <NavButton path="/events" icon={Calendar} label="Events" activeId="events" />
+          <NavButton path="/clubs" icon={Users} label="Clubs" activeId="clubs" />
+          <NavButton path="/my-events" icon={CalendarCheck} label="My Events" activeId="my-events" />
         </div>
       </div>
-      <div className="nav-center">
-        <button 
-          className={`nav-btn ${activePage === 'dashboard' ? 'active' : ''}`} 
-          onClick={() => navigate('/dashboard')}
-        >
-          Dashboard
-        </button>
-        <button 
-          className={`nav-btn ${activePage === 'events' ? 'active' : ''}`} 
-          onClick={() => navigate('/events')}
-        >
-          Events
-        </button>
-        <button 
-          className={`nav-btn ${activePage === 'clubs' ? 'active' : ''}`} 
-          onClick={() => navigate('/clubs')}
-        >
-          Clubs
-        </button>
-        <button 
-          className={`nav-btn ${activePage === 'my-events' ? 'active' : ''}`} 
-          onClick={() => navigate('/my-events')}
-        >
-          My Events
-        </button>
-        
-        {/* Show Create Event button only for club heads */}
+
+      <div className="flex items-center gap-4">
         {isClubHead() && (
-          <button 
-            className={`nav-btn create-event-btn ${activePage === 'create-event' ? 'active' : ''}`} 
+          <button
             onClick={() => navigate('/create-event')}
+            className={`hidden md:flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all duration-200 
+              ${activePage === 'create-event'
+                ? 'bg-indigo-100 text-indigo-700'
+                : 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white hover:shadow-lg hover:shadow-indigo-500/25 hover:-translate-y-0.5'
+              }`}
           >
-            Create Event
+            <PlusCircle size={18} />
+            <span>Create Event</span>
           </button>
         )}
-        
-      </div>
-      <div className="nav-right">
-        <div className="profile-btn-wrapper">
-          <button 
+
+        <div className="h-6 w-px bg-slate-200 hidden md:block"></div>
+
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-50 border border-slate-200">
+            <div className="w-6 h-6 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600">
+              <User size={14} />
+            </div>
+            <span className="text-sm font-medium text-slate-700">Profile</span>
+          </div>
+
+          <button
             onClick={handleLogout}
-            className="logout-btn"
-            style={{
-              background: 'none',
-              border: '1px solid rgba(255,255,255,0.1)',
-              color: 'var(--primary-text)',
-              padding: '8px 16px',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontSize: '14px',
-              transition: 'all 0.2s ease'
-            }}
-            onMouseOver={(e) => {
-              e.target.style.backgroundColor = 'rgba(255,255,255,0.1)'
-            }}
-            onMouseOut={(e) => {
-              e.target.style.backgroundColor = 'transparent'
-            }}
+            className="p-2 rounded-full text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+            title="Logout"
           >
-            Logout
+            <LogOut size={20} />
           </button>
-          <span className="profile-text">Profile</span>
         </div>
       </div>
     </nav>

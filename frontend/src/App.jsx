@@ -19,104 +19,114 @@ import ProtectedRoute from './components/ProtectedRoute'
 
 function App() {
   console.log('App component rendering');
-  
+
   const isAuthenticated = () => {
-    return localStorage.getItem('token') && localStorage.getItem('user');
+    const token = localStorage.getItem('token');
+    const userStr = localStorage.getItem('user');
+
+    if (!token || !userStr) return false;
+
+    try {
+      const user = JSON.parse(userStr);
+      return !!user.id;
+    } catch (e) {
+      return false;
+    }
   };
-  
+
   return (
     <Routes>
       {/* Public routes */}
       <Route path="/" element={<LandingPage />} />
-      
+
       {/* Auth routes */}
-      <Route 
-        path="/login" 
+      <Route
+        path="/login"
         element={
           isAuthenticated() ? <Navigate to="/dashboard" replace /> : <LoginPage />
-        } 
+        }
       />
-      <Route 
-        path="/register" 
+      <Route
+        path="/register"
         element={
           isAuthenticated() ? <Navigate to="/dashboard" replace /> : <RegisterPage />
-        } 
+        }
       />
-      
+
       {/* Protected routes */}
-      <Route 
-        path="/dashboard" 
+      <Route
+        path="/dashboard"
         element={
           <ProtectedRoute>
             <DashboardPage />
           </ProtectedRoute>
-        } 
+        }
       />
-      <Route 
-        path="/events" 
+      <Route
+        path="/events"
         element={
           <ProtectedRoute>
             <EventsPage />
           </ProtectedRoute>
-        } 
+        }
       />
-      <Route 
-        path="/create-event" 
+      <Route
+        path="/create-event"
         element={
           <ProtectedRoute>
             <CreateEvent />
           </ProtectedRoute>
-        } 
+        }
       />
-      <Route 
-        path="/events/:eventId/register" 
+      <Route
+        path="/events/:eventId/register"
         element={
           <ProtectedRoute>
             <EventRegister />
           </ProtectedRoute>
-        } 
+        }
       />
-      <Route 
-        path="/events/:eventId/manage" 
+      <Route
+        path="/events/:eventId/manage"
         element={
           <ProtectedRoute>
             <ManageEvent />
           </ProtectedRoute>
-        } 
+        }
       />
-      <Route 
-        path="/clubs" 
+      <Route
+        path="/clubs"
         element={
           <ProtectedRoute>
             <ClubsPage />
           </ProtectedRoute>
-        } 
+        }
       />
-      <Route 
-        path="/clubs/:clubId" 
+      <Route
+        path="/clubs/:clubId"
         element={
           <ProtectedRoute>
             <ClubDetails />
           </ProtectedRoute>
-        } 
+        }
       />
-      <Route 
-        path="/clubs/:clubId/manage" 
+      <Route
+        path="/clubs/:clubId/manage"
         element={
           <ProtectedRoute>
             <ManageClub />
           </ProtectedRoute>
-        } 
+        }
       />
-      <Route 
-        path="/my-events" 
+      <Route
+        path="/my-events"
         element={
           <ProtectedRoute>
             <MyEvents />
           </ProtectedRoute>
-        } 
+        }
       />
-      
+
       {/* Admin routes */}
       <Route path="/admin/login" element={<AdminLoginPage />} />
       <Route path="/admin/dashboard" element={<AdminDashboard />} />
