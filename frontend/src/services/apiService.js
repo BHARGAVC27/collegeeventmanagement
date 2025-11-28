@@ -1,5 +1,15 @@
 // API service for communicating with backend
-const API_BASE_URL = 'http://localhost:5000/api';
+// Automatically detect the API URL based on the current host
+const getApiBaseUrl = () => {
+  // If accessing from network (not localhost), use the same host for API
+  const hostname = window.location.hostname;
+  if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
+    return `http://${hostname}:5000/api`;
+  }
+  return 'http://localhost:5000/api';
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 class ApiService {
   // Generic API call method

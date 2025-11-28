@@ -7,8 +7,9 @@ require('dotenv').config();
 const dbConfig = {
     host: process.env.DB_HOST || 'localhost',
     user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASSWORD || 'Bhargav@1',
+    password: process.env.DB_PASSWORD || 'root',
     database: process.env.DB_NAME || 'college_event_management',
+    port: process.env.DB_PORT || 3307,
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0,
@@ -29,15 +30,15 @@ async function createDatabaseIfNotExists() {
         const promiseConnection = connection.promise();
 
         console.log('Checking if database exists...');
-        
+
         // Create database if it doesn't exist
         await promiseConnection.execute(
             `CREATE DATABASE IF NOT EXISTS \`${dbConfig.database}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`
         );
-        
+
         console.log(`Database '${dbConfig.database}' is ready.`);
         await promiseConnection.end();
-        
+
     } catch (error) {
         console.error('Error creating database:', error);
         throw error;
@@ -48,33 +49,33 @@ async function createDatabaseIfNotExists() {
 async function loadSchema() {
     try {
         console.log('Loading database schema...');
-        
-        const schemaPath = path.join(__dirname, 'schema_enhanced.sql');
+
+        const schemaPath = path.join(__dirname, 'schema.sql');
         const schemaSql = fs.readFileSync(schemaPath, 'utf8');
-        
+
         // Remove comments and split by semicolons properly
         const cleanSql = schemaSql
             .split('\n')
             .filter(line => !line.trim().startsWith('--'))
             .join('\n');
-        
+
         // Split by semicolons but preserve statement integrity
         const statements = cleanSql
             .split(';')
             .map(stmt => stmt.trim())
             .filter(stmt => stmt.length > 0 && !stmt.toLowerCase().includes('delimiter'));
-        
+
         console.log(`Found ${statements.length} SQL statements to execute...`);
-        
+
         // Execute statements one by one
         for (let i = 0; i < statements.length; i++) {
             const statement = statements[i];
-            
+
             // Skip empty statements
             if (!statement || statement.length < 5) {
                 continue;
             }
-            
+
             try {
                 await promisePool.execute(statement);
                 console.log(`✓ Executed statement ${i + 1}: ${statement.split('\n')[0].substring(0, 50)}...`);
@@ -85,9 +86,9 @@ async function loadSchema() {
                 throw error;
             }
         }
-        
+
         console.log('Database schema loaded successfully!');
-        
+
     } catch (error) {
         console.error('Error loading schema:', error);
         throw error;
@@ -110,23 +111,23 @@ async function testConnection() {
 async function initializeDatabase() {
     try {
         console.log('Initializing database...');
-        
+
         // Step 1: Create database if it doesn't exist
         await createDatabaseIfNotExists();
-        
+
         // Step 2: Test connection
         const connected = await testConnection();
         if (!connected) {
             throw new Error('Failed to connect to database');
         }
-        
+
         // Step 3: Check if tables exist
         const [tables] = await promisePool.execute(
             `SELECT COUNT(*) as count FROM information_schema.tables 
              WHERE table_schema = ?`,
             [dbConfig.database]
         );
-        
+
         // Step 4: Load schema if tables don't exist
         if (tables[0].count === 0) {
             console.log('Tables not found. Loading schema...');
@@ -135,9 +136,9 @@ async function initializeDatabase() {
             console.log('Database tables already exist.');
             console.log('To reload schema, delete the existing database manually and run this script again.');
         }
-        
+
         console.log('Database initialization complete!');
-        
+
     } catch (error) {
         console.error('Database initialization failed:', error);
         throw error;

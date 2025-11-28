@@ -14,7 +14,24 @@ const app = express();
 
 const PORT = process.env.PORT || 5000;
 
-app.use(cors());
+// CORS configuration to allow frontend development servers
+app.use(cors({
+    origin: [
+        'http://localhost:5173',
+        'http://localhost:5174',
+        'http://localhost:3000',
+        'http://10.1.21.117:5173',
+        'http://192.168.88.1:5173',
+        'http://192.168.189.1:5173',
+        // Also allow direct backend access for testing
+        'http://10.1.21.117:5000',
+        'http://192.168.88.1:5000',
+        'http://192.168.189.1:5000'
+    ],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
 // JSON parsing
 app.use(express.json());
@@ -29,10 +46,10 @@ app.use('/api', clubRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
-    res.json({ 
-        message: 'College Event Management System API',
-        status: 'running',
-        timestamp: new Date().toISOString()
+    res.json({
+        message: 'EventNexus System API',
+        status: 'active',
+        timestamp: new Date()
     });
 });
 
@@ -58,23 +75,27 @@ app.get('/health', async (req, res) => {
 // Initialize database and start server
 async function startServer() {
     try {
-        console.log('🚀 Starting College Event Management System...');
-        
+        console.log('🚀 Starting EventNexus System...');
+
         // Initialize database
         await initializeDatabase();
-        
-        // Start the server
-        const server = app.listen(PORT, () => {
-            console.log(`✅ Server is running on http://localhost:${PORT}`);
+
+        // Start the server on all network interfaces
+        const server = app.listen(PORT, '0.0.0.0', () => {
+            console.log(`✅ Server is running on:`);
+            console.log(`   Local:   http://localhost:${PORT}`);
+            console.log(`   Network: http://10.1.21.117:${PORT}`);
+            console.log(`   Network: http://192.168.88.1:${PORT}`);
+            console.log(`   Network: http://192.168.189.1:${PORT}`);
             console.log(`📊 Health check: http://localhost:${PORT}/health`);
-            console.log('� Authentication endpoints:');
-            console.log(`   � Student login: http://localhost:${PORT}/api/auth/student/login`);
+            console.log('🔐 Authentication endpoints:');
+            console.log(`   👨‍🎓 Student login: http://localhost:${PORT}/api/auth/student/login`);
             console.log(`   👨‍💼 Admin login: http://localhost:${PORT}/api/auth/admin/login`);
             console.log('');
         });
-        
+
         return server;
-        
+
     } catch (error) {
         console.error('❌ Failed to start server:', error);
         process.exit(1);

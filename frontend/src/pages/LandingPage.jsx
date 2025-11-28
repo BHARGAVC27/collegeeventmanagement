@@ -5,7 +5,9 @@ export default function LandingPage() {
   return (
     <div className="page-root">
       <nav className="navbar">
-        <div className="brand">EventNexus</div>
+        <div className="brand">
+          <img src="/logo.png" alt="EventNexus" className="h-10" />
+        </div>
 
         <div className="nav-actions">
           <Link className="admin-link" to="/admin/login">Admin Portal</Link>
