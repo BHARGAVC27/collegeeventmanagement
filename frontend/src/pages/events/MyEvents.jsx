@@ -1,5 +1,6 @@
 ﻿import React, { useState, useEffect } from 'react'
 import { toast, Toaster } from 'sonner'
+import { Calendar, MapPin, Clock, XCircle, ArrowRight, Users, Ticket } from 'lucide-react'
 import apiService from '../../services/apiService'
 import NavBar from '../../components/NavBar'
 
@@ -11,23 +12,15 @@ export default function MyEvents() {
 
   const getUserName = () => {
     if (!user) return 'User'
-    
-    if (user.name) {
-      return user.name.split(' ')[0]
-    }
-    
-    if (user.email) {
-      return user.email.split('@')[0]
-    }
-    
+    if (user.name) return user.name.split(' ')[0]
+    if (user.email) return user.email.split('@')[0]
     return 'User'
   }
 
   useEffect(() => {
-    // Get user info from localStorage
     const token = localStorage.getItem('token')
     const userData = JSON.parse(localStorage.getItem('user') || '{}')
-    
+
     if (!token || !userData.email) {
       setLoading(false)
       return
@@ -37,10 +30,8 @@ export default function MyEvents() {
       try {
         setLoading(true)
         setUser(userData)
-        
-        // Fetch user's registered events using email from localStorage
         const response = await apiService.getMyRegisteredEvents(userData.email)
-        
+
         if (response.success) {
           setEvents(response.events || [])
         } else {
@@ -59,36 +50,9 @@ export default function MyEvents() {
     fetchMyEvents()
   }, [])
 
-  const getEventImage = (event) => {
-    const eventType = event.event_type?.toLowerCase() || ''
-    const eventName = event.name?.toLowerCase() || ''
-    
-    if (eventType.includes('workshop') || eventType.includes('seminar')) {
-      return 'https://images.unsplash.com/photo-1540317580384-e5d43616b9aa?w=400&h=400&fit=crop'
-    } else if (eventType.includes('hackathon') || eventType.includes('coding')) {
-      return 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=400&h=400&fit=crop'
-    } else if (eventType.includes('cultural') || eventType.includes('fest')) {
-      return 'https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=400&h=400&fit=crop'
-    } else if (eventType.includes('sports') || eventType.includes('competition')) {
-      return 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=400&h=400&fit=crop'
-    } else if (eventType.includes('tech talk') || eventType.includes('conference')) {
-      return 'https://images.unsplash.com/photo-1505373877841-8d25f7d46678?w=400&h=400&fit=crop'
-    } else if (eventType.includes('music') || eventType.includes('concert')) {
-      return 'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=400&h=400&fit=crop'
-    }
-    
-    if (eventName.includes('hackathon')) {
-      return 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=400&h=400&fit=crop'
-    } else if (eventName.includes('debate') || eventName.includes('speaking')) {
-      return 'https://images.unsplash.com/photo-1475721027785-f74eccf877e2?w=400&h=400&fit=crop'
-    }
-    
-    return 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=400&h=400&fit=crop'
-  }
-
   const handleCancelRegistration = async (eventId, eventName, e) => {
     e.stopPropagation()
-    
+
     if (!confirm(`Are you sure you want to cancel your registration for "${eventName}"?`)) {
       return
     }
@@ -96,7 +60,7 @@ export default function MyEvents() {
     try {
       const email = user.email
       const response = await apiService.cancelEventRegistration(eventId, email)
-      
+
       if (response.success) {
         setEvents(events.filter(event => event.id !== eventId))
         toast.success('Registration cancelled successfully!')
@@ -111,156 +75,143 @@ export default function MyEvents() {
 
   if (loading) {
     return (
-      <div className="page-root">
-        <NavBar activePage="my-events" />
-        <main className="events-main">
-          <div className="events-container">
-            <div className="loading-container">
-              <div className="spinner"></div>
-              <p className="loading-text">Loading your registered events...</p>
-            </div>
-          </div>
-        </main>
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-600"></div>
       </div>
     )
   }
 
   return (
-    <div className="page-root">
+    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
       <Toaster position="top-center" richColors />
       <NavBar activePage="my-events" />
-      
-      <main className="events-main">
-        <div className="events-container">
-          <div className="my-events-welcome">
-            <h2>Welcome back, {getUserName()}! 👋</h2>
-            <p>Here are all the events you've registered for. Manage your registrations and stay updated.</p>
-            {events.length > 0 && (
-              <div className="my-events-stats">
-                <div className="my-events-stat">
-                  <div className="my-events-stat-value">{events.length}</div>
-                  <div className="my-events-stat-label">Registered Events</div>
-                </div>
-                <div className="my-events-stat">
-                  <div className="my-events-stat-value">
-                    {events.filter(e => new Date(e.event_date) >= new Date()).length}
-                  </div>
-                  <div className="my-events-stat-label">Upcoming</div>
-                </div>
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        {/* Header Section */}
+        <div className="mb-12">
+          <h1 className="text-4xl font-extrabold tracking-tight mb-4 text-slate-900">
+            Welcome back, <span className="text-indigo-600">{getUserName()}! 👋</span>
+          </h1>
+          <p className="text-slate-500 text-lg mb-8">
+            Manage your event registrations and stay updated with your schedule.
+          </p>
+
+          {events.length > 0 && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+                <div className="text-3xl font-bold text-indigo-600 mb-1">{events.length}</div>
+                <div className="text-sm text-slate-500 font-medium">Registered Events</div>
               </div>
-            )}
-          </div>
-
-          {error && (
-            <div className="error-banner">
-              <svg className="error-banner-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="10"/>
-                <line x1="12" y1="8" x2="12" y2="12"/>
-                <line x1="12" y1="16" x2="12.01" y2="16"/>
-              </svg>
-              <p className="error-banner-text">{error}</p>
-            </div>
-          )}
-
-          {!loading && (
-            <div className="events-grid-section">
-              {events && events.length > 0 ? (
-                events.map((event) => (
-                  <div 
-                    key={event.id} 
-                    className="event-card-new my-event-card"
-                  >
-                    <div className="event-image-wrapper">
-                      <img
-                        src={getEventImage(event)}
-                        alt={event.name}
-                        className="event-image"
-                        onError={(e) => {
-                          e.target.onerror = null
-                          e.target.src = '/placeholder-event.png'
-                        }}
-                      />
-                      <div className="event-badge-registered">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                          <polyline points="22 4 12 14.01 9 11.01"/>
-                        </svg>
-                        Registered
-                      </div>
-                    </div>
-
-                    <h3 className="event-name-new">{event.name}</h3>
-                    <p className="event-club-new">Hosted by {event.club_name}</p>
-
-                    <div className="event-info-grid">
-                      <div className="event-info-item-new">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                          <line x1="16" y1="2" x2="16" y2="6"/>
-                          <line x1="8" y1="2" x2="8" y2="6"/>
-                          <line x1="3" y1="10" x2="21" y2="10"/>
-                        </svg>
-                        <span>{apiService.formatEventDate(event.event_date)}, {apiService.formatEventTime(event.start_time)}</span>
-                      </div>
-
-                      {event.venue_name && (
-                        <div className="event-info-item-new">
-                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
-                            <circle cx="12" cy="10" r="3"/>
-                          </svg>
-                          <span>{event.venue_name}</span>
-                        </div>
-                      )}
-
-                      <div className="event-info-item-new">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                          <circle cx="9" cy="7" r="4"/>
-                          <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-                          <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-                        </svg>
-                        <span className="event-attendance">
-                          {event.registered_count || 0} attending
-                        </span>
-                      </div>
-                    </div>
-
-                    <button 
-                      className="cancel-registration-btn"
-                      onClick={(e) => handleCancelRegistration(event.id, event.name, e)}
-                    >
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <circle cx="12" cy="12" r="10"/>
-                        <line x1="15" y1="9" x2="9" y2="15"/>
-                        <line x1="9" y1="9" x2="15" y2="15"/>
-                      </svg>
-                      Cancel Registration
-                    </button>
-                  </div>
-                ))
-              ) : (
-                <div className="no-events-grid">
-                  <svg className="no-events-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                    <line x1="16" y1="2" x2="16" y2="6"/>
-                    <line x1="8" y1="2" x2="8" y2="6"/>
-                    <line x1="3" y1="10" x2="21" y2="10"/>
-                    <path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01"/>
-                  </svg>
-                  <p>You haven't registered for any events yet.</p>
-                  <a href="/events" className="browse-events-btn">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
-                      <circle cx="12" cy="10" r="3"/>
-                    </svg>
-                    Browse Events
-                  </a>
+              <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+                <div className="text-3xl font-bold text-violet-600 mb-1">
+                  {events.filter(e => new Date(e.event_date) >= new Date()).length}
                 </div>
-              )}
+                <div className="text-sm text-slate-500 font-medium">Upcoming</div>
+              </div>
             </div>
           )}
         </div>
+
+        {error && (
+          <div className="bg-red-50 border border-red-100 text-red-600 rounded-xl p-6 mb-8 flex items-center gap-3">
+            <XCircle className="w-5 h-5" />
+            <p>{error}</p>
+          </div>
+        )}
+
+        {!loading && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {events && events.length > 0 ? (
+              events.map((event) => (
+                <div
+                  key={event.id}
+                  className="group bg-white border border-slate-200 rounded-2xl overflow-hidden hover:shadow-lg hover:shadow-indigo-500/10 hover:-translate-y-1 transition-all duration-300 flex flex-col h-full"
+                >
+                  {/* Image Header */}
+                  <div className="relative h-48 overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent z-10" />
+                    <img
+                      src={event.image_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(event.name)}&background=random&size=400`}
+                      alt={event.name}
+                      className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500"
+                      onError={(e) => {
+                        e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(event.name)}&background=random&size=400`
+                      }}
+                    />
+                    <div className="absolute top-4 right-4 z-20">
+                      <span className="px-3 py-1 rounded-full bg-green-500/90 backdrop-blur-sm text-white text-xs font-bold shadow-sm flex items-center gap-1">
+                        <Ticket className="w-3 h-3" />
+                        Registered
+                      </span>
+                    </div>
+                    <div className="absolute bottom-4 left-4 z-20">
+                      <h3 className="text-xl font-bold text-white mb-1 leading-tight">{event.name}</h3>
+                      <p className="text-white/90 text-sm flex items-center gap-1">
+                        <Users className="w-4 h-4" />
+                        Hosted by {event.club_name}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Content */}
+                  <div className="p-6 flex-1 flex flex-col">
+                    <div className="space-y-3 mb-6">
+                      <div className="flex items-center gap-3 text-slate-600">
+                        <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600 shrink-0">
+                          <Calendar className="w-4 h-4" />
+                        </div>
+                        <span className="text-sm font-medium">{apiService.formatEventDate(event.event_date)}</span>
+                      </div>
+
+                      <div className="flex items-center gap-3 text-slate-600">
+                        <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600 shrink-0">
+                          <Clock className="w-4 h-4" />
+                        </div>
+                        <span className="text-sm font-medium">{apiService.formatEventTime(event.start_time)}</span>
+                      </div>
+
+                      {event.venue_name && (
+                        <div className="flex items-center gap-3 text-slate-600">
+                          <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600 shrink-0">
+                            <MapPin className="w-4 h-4" />
+                          </div>
+                          <span className="text-sm font-medium">{event.venue_name}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="mt-auto pt-4 border-t border-slate-100">
+                      <button
+                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 transition-all duration-200 font-medium text-sm"
+                        onClick={(e) => handleCancelRegistration(event.id, event.name, e)}
+                      >
+                        <XCircle className="w-4 h-4" />
+                        Cancel Registration
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="col-span-full py-16 text-center bg-white border border-slate-200 rounded-3xl border-dashed">
+                <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Ticket className="w-10 h-10 text-slate-400" />
+                </div>
+                <h3 className="text-xl font-bold text-slate-900 mb-2">No registered events</h3>
+                <p className="text-slate-500 mb-8 max-w-md mx-auto">
+                  You haven't registered for any events yet. Explore upcoming events and join the community!
+                </p>
+                <a
+                  href="/events"
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-indigo-600 text-white font-semibold hover:bg-indigo-700 shadow-lg shadow-indigo-500/20 transition-all hover:-translate-y-0.5"
+                >
+                  Browse Events
+                  <ArrowRight className="w-4 h-4" />
+                </a>
+              </div>
+            )}
+          </div>
+        )}
       </main>
     </div>
   )
