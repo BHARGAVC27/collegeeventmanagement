@@ -44,6 +44,7 @@ router.post('/student/login', async (req, res) => {
                 student_id: user.student_id,
                 name: user.name,
                 email: user.email,
+                phone: user.phone,
                 role: user.role_name,
                 userType: 'student'
             }
@@ -96,6 +97,7 @@ router.post('/admin/login', async (req, res) => {
                 employee_id: user.employee_id,
                 name: user.name,
                 email: user.email,
+                phone: user.phone,
                 role: user.role_name,
                 userType: 'admin',
                 department: user.department,
@@ -163,6 +165,7 @@ router.post('/student/register', async (req, res) => {
                 student_id: newStudent[0].student_id,
                 name: newStudent[0].name,
                 email: newStudent[0].email,
+                phone: newStudent[0].phone,
                 role: newStudent[0].role_name,
                 userType: 'student'
             }
@@ -238,6 +241,7 @@ router.post('/admin/register', async (req, res) => {
                 employee_id: newAdmin[0].employee_id,
                 name: newAdmin[0].name,
                 email: newAdmin[0].email,
+                phone: newAdmin[0].phone,
                 role: newAdmin[0].role_name,
                 userType: 'admin'
             }
@@ -263,7 +267,7 @@ router.post('/logout', (req, res) => {
 router.get('/profile', async (req, res) => {
     try {
         const token = req.header('Authorization')?.replace('Bearer ', '');
-        
+
         if (!token) {
             return res.status(401).json({
                 success: false,
@@ -273,7 +277,7 @@ router.get('/profile', async (req, res) => {
 
         const { verifyToken } = require('../middleware/auth');
         const decoded = verifyToken(token);
-        
+
         if (!decoded) {
             return res.status(401).json({
                 success: false,
