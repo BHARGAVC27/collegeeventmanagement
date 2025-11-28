@@ -6,7 +6,7 @@ export default function LandingPage() {
     <div className="page-root">
       <nav className="navbar">
         <div className="brand">
-          <img src="/logo.png" alt="EventNexus" className="h-10" />
+          <img src="/logo-clean.png" alt="EventNexus" className="h-10" />
         </div>
 
         <div className="nav-actions">
