@@ -39,7 +39,7 @@ export default function NavBar() {
       onClick={() => navigate(path)}
       className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 
         ${activePage === activeId
-          ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
+          ? 'bg-primary text-white shadow-md shadow-primary/20'
           : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
         }`}
     >
@@ -55,15 +55,15 @@ export default function NavBar() {
           onClick={() => navigate('/dashboard')}
           className="text-xl font-bold cursor-pointer hover:opacity-80 transition-opacity flex items-center gap-2"
         >
-          <img src="/logo-clean.png" alt="EventNexus" className="h-14 object-contain" />
+          <img src="/logo-clean.png" alt="EventNexus" className="h-16 object-contain" />
         </div>
+      </div>
 
-        <div className="hidden md:flex items-center gap-1 bg-slate-50 p-1 rounded-full border border-slate-200">
-          <NavButton path="/dashboard" icon={LayoutDashboard} label="Dashboard" activeId="dashboard" />
-          <NavButton path="/events" icon={Calendar} label="Events" activeId="events" />
-          <NavButton path="/clubs" icon={Users} label="Clubs" activeId="clubs" />
-          <NavButton path="/my-events" icon={CalendarCheck} label="My Events" activeId="my-events" />
-        </div>
+      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 hidden md:flex items-center gap-1 bg-slate-50 p-1 rounded-full border border-slate-200">
+        <NavButton path="/dashboard" icon={LayoutDashboard} label="Dashboard" activeId="dashboard" />
+        <NavButton path="/events" icon={Calendar} label="Events" activeId="events" />
+        <NavButton path="/clubs" icon={Users} label="Clubs" activeId="clubs" />
+        <NavButton path="/my-events" icon={CalendarCheck} label="My Events" activeId="my-events" />
       </div>
 
       <div className="flex items-center gap-4">
@@ -72,8 +72,8 @@ export default function NavBar() {
             onClick={() => navigate('/create-event')}
             className={`hidden md:flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all duration-200 
               ${activePage === 'create-event'
-                ? 'bg-indigo-100 text-indigo-700'
-                : 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white hover:shadow-lg hover:shadow-indigo-500/25 hover:-translate-y-0.5'
+                ? 'bg-primary/10 text-primary'
+                : 'bg-gradient-to-r from-primary to-primary text-white hover:shadow-lg hover:shadow-primary/25 hover:-translate-y-0.5'
               }`}
           >
             <PlusCircle size={18} />
@@ -85,7 +85,7 @@ export default function NavBar() {
 
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-50 border border-slate-200">
-            <div className="w-6 h-6 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600">
+            <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary">
               <User size={14} />
             </div>
             <span className="text-sm font-medium text-slate-700">Profile</span>

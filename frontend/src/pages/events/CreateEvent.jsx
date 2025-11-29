@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Calendar, Clock, MapPin, Users, AlertCircle, CheckCircle, Type, FileText, Building2, Save, X } from 'lucide-react'
+import { Calendar, Clock, MapPin, Users, AlertCircle, Type, FileText, Save, ArrowLeft, Sparkles } from 'lucide-react'
 import { toast, Toaster } from 'sonner'
 import apiService from '../../services/apiService'
 import NavBar from '../../components/NavBar'
@@ -188,249 +188,266 @@ export default function CreateEvent() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans pb-12">
+    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans pb-20">
       <Toaster position="top-right" richColors closeButton />
       <NavBar activePage="create-event" />
 
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-slate-900 mb-2">Create New Event</h1>
-          <p className="text-slate-500">
-            Fill in the details below to create your event. It will be sent to admin for approval.
+      <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+
+        {/* Header */}
+        <div className="mb-10">
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="group flex items-center text-sm font-medium text-slate-500 hover:text-primary mb-4 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4 mr-1 group-hover:-translate-x-1 transition-transform" />
+            Back to Dashboard
+          </button>
+          <h1 className="text-4xl font-extrabold tracking-tight text-slate-900 mb-3">
+            Create New Event
+          </h1>
+          <p className="text-lg text-slate-500">
+            Design an engaging experience for your club members.
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-8">
-          {/* Basic Information Section */}
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-            <h3 className="text-lg font-semibold text-slate-800 mb-6 flex items-center gap-2">
-              <FileText className="w-5 h-5 text-indigo-600" />
-              Basic Information
-            </h3>
 
-            <div className="space-y-6">
-              <div>
-                <label htmlFor="name" className="block text-sm font-medium text-slate-700 mb-1">Event Name *</label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Type className="h-5 w-5 text-slate-400" />
-                  </div>
+          {/* Main Card */}
+          <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden">
+
+            {/* Section: Basic Info */}
+            <div className="p-8 border-b border-slate-100">
+              <h3 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <Sparkles className="w-5 h-5 text-primary" />
+                </div>
+                Event Details
+              </h3>
+
+              <div className="space-y-6">
+                <div>
+                  <label htmlFor="name" className="block text-sm font-semibold text-slate-700 mb-2">Event Title</label>
                   <input
                     type="text"
                     id="name"
                     name="name"
                     value={formData.name}
                     onChange={handleInputChange}
-                    placeholder="Enter event name"
+                    placeholder="e.g. Annual Tech Symposium 2024"
                     required
-                    className="block w-full pl-10 pr-3 py-2.5 border border-slate-200 rounded-xl bg-white text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm"
+                    className="block w-full px-4 py-3 rounded-xl bg-slate-50 border-transparent focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all duration-200 font-medium placeholder:text-slate-400"
                   />
+                </div>
+
+                <div>
+                  <label htmlFor="description" className="block text-sm font-semibold text-slate-700 mb-2">Description</label>
+                  <textarea
+                    id="description"
+                    name="description"
+                    value={formData.description}
+                    onChange={handleInputChange}
+                    placeholder="Tell people what this event is about..."
+                    rows={4}
+                    required
+                    className="block w-full px-4 py-3 rounded-xl bg-slate-50 border-transparent focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all duration-200 placeholder:text-slate-400 resize-none"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label htmlFor="event_type" className="block text-sm font-semibold text-slate-700 mb-2">Category</label>
+                    <div className="relative">
+                      <select
+                        id="event_type"
+                        name="event_type"
+                        value={formData.event_type}
+                        onChange={handleInputChange}
+                        className="block w-full px-4 py-3 rounded-xl bg-slate-50 border-transparent focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all duration-200 appearance-none cursor-pointer font-medium"
+                      >
+                        {eventTypes.map(type => (
+                          <option key={type} value={type}>{type}</option>
+                        ))}
+                      </select>
+                      <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-slate-500">
+                        <Type className="w-4 h-4" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="club_id" className="block text-sm font-semibold text-slate-700 mb-2">Organizing Club</label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        id="club_id"
+                        value={userClub ? userClub.name : 'Loading...'}
+                        disabled
+                        className="block w-full px-4 py-3 rounded-xl bg-slate-100 border-transparent text-slate-500 font-medium cursor-not-allowed"
+                      />
+                      <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-slate-400">
+                        <Users className="w-4 h-4" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Section: Logistics */}
+            <div className="p-8 border-b border-slate-100 bg-slate-50/30">
+              <h3 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
+                <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
+                  <Calendar className="w-5 h-5" />
+                </div>
+                Logistics
+              </h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div className="col-span-full">
+                  <label htmlFor="event_date" className="block text-sm font-semibold text-slate-700 mb-2">Date</label>
+                  <input
+                    type="date"
+                    id="event_date"
+                    name="event_date"
+                    value={formData.event_date}
+                    onChange={handleInputChange}
+                    min={new Date().toISOString().split('T')[0]}
+                    required
+                    className="block w-full px-4 py-3 rounded-xl bg-white border border-slate-200 focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all duration-200"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="start_time" className="block text-sm font-semibold text-slate-700 mb-2">Start Time</label>
+                  <div className="relative">
+                    <input
+                      type="time"
+                      id="start_time"
+                      name="start_time"
+                      value={formData.start_time}
+                      onChange={handleInputChange}
+                      required
+                      className="block w-full px-4 py-3 rounded-xl bg-white border border-slate-200 focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all duration-200"
+                    />
+                    <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-slate-400">
+                      <Clock className="w-4 h-4" />
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label htmlFor="end_time" className="block text-sm font-semibold text-slate-700 mb-2">End Time</label>
+                  <div className="relative">
+                    <input
+                      type="time"
+                      id="end_time"
+                      name="end_time"
+                      value={formData.end_time}
+                      onChange={handleInputChange}
+                      required
+                      className="block w-full px-4 py-3 rounded-xl bg-white border border-slate-200 focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all duration-200"
+                    />
+                    <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-slate-400">
+                      <Clock className="w-4 h-4" />
+                    </div>
+                  </div>
                 </div>
               </div>
 
               <div>
-                <label htmlFor="description" className="block text-sm font-medium text-slate-700 mb-1">Description *</label>
-                <textarea
-                  id="description"
-                  name="description"
-                  value={formData.description}
-                  onChange={handleInputChange}
-                  placeholder="Describe your event..."
-                  rows={4}
-                  required
-                  className="block w-full px-4 py-3 border border-slate-200 rounded-xl bg-white text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm resize-none"
-                />
+                <label htmlFor="venue_id" className="block text-sm font-semibold text-slate-700 mb-2">Venue</label>
+                <div className="relative">
+                  <select
+                    id="venue_id"
+                    name="venue_id"
+                    value={formData.venue_id}
+                    onChange={handleInputChange}
+                    className="block w-full px-4 py-3 rounded-xl bg-white border border-slate-200 focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all duration-200 appearance-none cursor-pointer"
+                  >
+                    <option value="">Select a venue (Optional)</option>
+                    {venues.map(venue => (
+                      <option key={venue.id} value={venue.id}>
+                        {venue.name} • {venue.type} (Cap: {venue.capacity})
+                      </option>
+                    ))}
+                  </select>
+                  <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-slate-500">
+                    <MapPin className="w-4 h-4" />
+                  </div>
+                </div>
               </div>
+            </div>
+
+            {/* Section: Registration */}
+            <div className="p-8">
+              <h3 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
+                <div className="p-2 bg-green-50 text-green-600 rounded-lg">
+                  <Users className="w-5 h-5" />
+                </div>
+                Capacity & Deadlines
+              </h3>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label htmlFor="event_type" className="block text-sm font-medium text-slate-700 mb-1">Event Type</label>
-                  <select
-                    id="event_type"
-                    name="event_type"
-                    value={formData.event_type}
+                  <label htmlFor="max_participants" className="block text-sm font-semibold text-slate-700 mb-2">Max Participants</label>
+                  <input
+                    type="number"
+                    id="max_participants"
+                    name="max_participants"
+                    value={formData.max_participants}
                     onChange={handleInputChange}
-                    className="block w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm cursor-pointer"
-                  >
-                    {eventTypes.map(type => (
-                      <option key={type} value={type}>{type}</option>
-                    ))}
-                  </select>
+                    min="1"
+                    placeholder="e.g. 100"
+                    required
+                    className="block w-full px-4 py-3 rounded-xl bg-slate-50 border-transparent focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all duration-200"
+                  />
                 </div>
 
                 <div>
-                  <label htmlFor="club_id" className="block text-sm font-medium text-slate-700 mb-1">Organizing Club *</label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Users className="h-5 w-5 text-slate-400" />
-                    </div>
-                    <input
-                      type="text"
-                      id="club_id"
-                      value={userClub ? userClub.name : 'Loading...'}
-                      disabled
-                      className="block w-full pl-10 pr-3 py-2.5 border border-slate-200 rounded-xl bg-slate-50 text-slate-500 cursor-not-allowed shadow-sm"
-                      title="Club is automatically selected based on your club head role"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Date and Time Section */}
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-            <h3 className="text-lg font-semibold text-slate-800 mb-6 flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-indigo-600" />
-              Date & Time
-            </h3>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div>
-                <label htmlFor="event_date" className="block text-sm font-medium text-slate-700 mb-1">Event Date *</label>
-                <input
-                  type="date"
-                  id="event_date"
-                  name="event_date"
-                  value={formData.event_date}
-                  onChange={handleInputChange}
-                  min={new Date().toISOString().split('T')[0]}
-                  required
-                  className="block w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="start_time" className="block text-sm font-medium text-slate-700 mb-1">Start Time *</label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Clock className="h-5 w-5 text-slate-400" />
-                  </div>
+                  <label htmlFor="registration_deadline" className="block text-sm font-semibold text-slate-700 mb-2">Deadline (Optional)</label>
                   <input
-                    type="time"
-                    id="start_time"
-                    name="start_time"
-                    value={formData.start_time}
+                    type="datetime-local"
+                    id="registration_deadline"
+                    name="registration_deadline"
+                    value={formData.registration_deadline}
                     onChange={handleInputChange}
-                    required
-                    className="block w-full pl-10 pr-3 py-2.5 border border-slate-200 rounded-xl bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm"
-                    step="300"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label htmlFor="end_time" className="block text-sm font-medium text-slate-700 mb-1">End Time *</label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Clock className="h-5 w-5 text-slate-400" />
-                  </div>
-                  <input
-                    type="time"
-                    id="end_time"
-                    name="end_time"
-                    value={formData.end_time}
-                    onChange={handleInputChange}
-                    required
-                    className="block w-full pl-10 pr-3 py-2.5 border border-slate-200 rounded-xl bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm"
-                    step="300"
+                    min={new Date().toISOString().slice(0, 16)}
+                    className="block w-full px-4 py-3 rounded-xl bg-slate-50 border-transparent focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all duration-200"
                   />
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* Venue Section */}
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-            <h3 className="text-lg font-semibold text-slate-800 mb-6 flex items-center gap-2">
-              <MapPin className="w-5 h-5 text-indigo-600" />
-              Venue
-            </h3>
-
-            <div>
-              <label htmlFor="venue_id" className="block text-sm font-medium text-slate-700 mb-1">Venue (Optional)</label>
-              <select
-                id="venue_id"
-                name="venue_id"
-                value={formData.venue_id}
-                onChange={handleInputChange}
-                className="block w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm cursor-pointer"
+            {/* Footer Actions */}
+            <div className="p-6 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-4">
+              <button
+                type="button"
+                onClick={() => navigate('/dashboard')}
+                disabled={loading}
+                className="px-6 py-3 rounded-xl text-slate-600 font-semibold hover:bg-slate-200/50 transition-colors disabled:opacity-50"
               >
-                <option value="">Select Venue</option>
-                {venues.map(venue => (
-                  <option key={venue.id} value={venue.id}>
-                    {venue.name} - {venue.type} (Capacity: {venue.capacity})
-                  </option>
-                ))}
-              </select>
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={loading}
+                className="flex items-center gap-2 px-8 py-3 rounded-xl bg-gradient-to-r from-primary to-violet-600 text-white font-bold shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/40 hover:-translate-y-0.5 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none"
+              >
+                {loading ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-5 h-5" />
+                    Create Event
+                  </>
+                )}
+              </button>
             </div>
-          </div>
 
-          {/* Registration Section */}
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-            <h3 className="text-lg font-semibold text-slate-800 mb-6 flex items-center gap-2">
-              <Users className="w-5 h-5 text-indigo-600" />
-              Registration Settings
-            </h3>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label htmlFor="max_participants" className="block text-sm font-medium text-slate-700 mb-1">Max Participants *</label>
-                <input
-                  type="number"
-                  id="max_participants"
-                  name="max_participants"
-                  value={formData.max_participants}
-                  onChange={handleInputChange}
-                  min="1"
-                  placeholder="Enter max participants"
-                  required
-                  className="block w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-white text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="registration_deadline" className="block text-sm font-medium text-slate-700 mb-1">Registration Deadline (Optional)</label>
-                <input
-                  type="datetime-local"
-                  id="registration_deadline"
-                  name="registration_deadline"
-                  value={formData.registration_deadline}
-                  onChange={handleInputChange}
-                  min={new Date().toISOString().slice(0, 16)}
-                  className="block w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Submit Button */}
-          <div className="flex items-center justify-end gap-4 pt-4">
-            <button
-              type="button"
-              onClick={() => navigate('/dashboard')}
-              disabled={loading}
-              className="px-6 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-medium hover:bg-slate-50 hover:text-slate-900 transition-colors disabled:opacity-50"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex items-center gap-2 px-8 py-2.5 rounded-xl bg-indigo-600 text-white font-medium hover:bg-indigo-700 hover:shadow-lg hover:shadow-indigo-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? (
-                <>
-                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Creating...
-                </>
-              ) : (
-                <>
-                  <Save className="w-5 h-5" />
-                  Create Event
-                </>
-              )}
-            </button>
           </div>
         </form>
       </main>
